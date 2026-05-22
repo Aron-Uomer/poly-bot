@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polymarket Replicator | Premium Copy Trading Bot</title>
+  <!-- Google Fonts: Outfit for body, Fira Code for logs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Vanilla CSS Style Sheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Background Glowing Orbs -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+
+  <div class="app-container">
+    
+    <!-- TOP NAVIGATION BAR -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <div class="logo-box">
+          <i class="fa-solid fa-chart-line logo-icon"></i>
+        </div>
+        <div class="brand-text">
+          <h1>POLYMARKET <span class="accent-text">REPLICATOR</span></h1>
+          <span class="sub-brand">PROPORTIONAL COPY TRADING ENGINE</span>
+        </div>
+      </div>
+      
+      <div class="nav-controls">
+        <!-- Connection Badge -->
+        <div id="connection-badge" class="connection-status offline">
+          <span class="status-indicator"></span>
+          <span class="status-label">CONNECTING...</span>
+        </div>
+        
+        <!-- Toggle Button for Bot State -->
+        <button id="bot-toggle-btn" class="btn btn-bot-status paused">
+          <i class="fa-solid fa-play"></i>
+          <span>START BOT</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="dashboard-grid">
+      
+      <!-- COLUMN 1: WIDGETS & STATS -->
+      <section class="dash-column col-left">
+        
+        <!-- KEY METRICS GRID -->
+        <div class="metrics-container">
+          <!-- CARD 1: NAV -->
+          <div class="metric-card card-nav highlight-border">
+            <div class="card-icon"><i class="fa-solid fa-wallet"></i></div>
+            <div class="card-details">
+              <h3>Net Asset Value (NAV)</h3>
+              <div id="nav-val" class="metric-value">$0.00</div>
+              <span class="metric-subtext">Cash + Open Positions</span>
+            </div>
+          </div>
+          
+          <!-- CARD 2: USDC BALANCE -->
+          <div class="metric-card">
+            <div class="card-icon"><i class="fa-solid fa-coins"></i></div>
+            <div class="card-details">
+              <h3>USDC Liquidity</h3>
+              <div id="cash-val" class="metric-value">$0.00</div>
+              <span id="cash-mode-subtext" class="metric-subtext">Paper USDC</span>
+            </div>
+          </div>
+          
+          <!-- CARD 3: POSITIONS VALUE -->
+          <div class="metric-card">
+            <div class="card-icon"><i class="fa-solid fa-business-time"></i></div>
+            <div class="card-details">
+              <h3>Positions Exposure</h3>
+              <div id="positions-val" class="metric-value">$0.00</div>
+              <span class="metric-subtext">Active Market Bets</span>
+            </div>
+          </div>
+          
+          <!-- CARD 4: TOTAL PNL -->
+          <div id="pnl-card" class="metric-card card-pnl">
+            <div class="card-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            <div class="card-details">
+              <h3>Total Profits (PnL)</h3>
+              <div id="pnl-val" class="metric-value">$0.00</div>
+              <span id="pnl-pct" class="metric-subtext">0.00% Overall</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RISK & ENGINE CONTROLS -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i class="fa-solid fa-sliders"></i> Engine Settings</h2>
+          </div>
+          <div class="panel-content">
+            <div class="settings-form">
+              <!-- Mode selection -->
+              <div class="form-group-toggle">
+                <span class="toggle-label-desc">
+                  <strong>Paper Trading (Simulation)</strong>
+                  <span class="field-sub">No capital is risked. Fills are calculated locally.</span>
+                </span>
+                <label class="switch">
+                  <input type="checkbox" id="paper-mode-toggle" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <!-- Warning banner for live mode -->
+              <div id="live-warning-banner" class="alert-box alert-warning hidden">
+                <i class="fa-solid fa-circle-exclamation alert-icon"></i>
+                <div class="alert-content">
+                  <h4>Live Trading Active</h4>
+                  <p>Orders will be routed directly to the Polymarket CLOB. Ensure MATIC is funded in your Polygon EOA for gas fees.</p>
+                </div>
+              </div>
+
+              <!-- Reset Simulation -->
+              <div class="form-group border-top pt-3">
+                <button id="reset-sim-btn" class="btn btn-danger btn-block">
+                  <i class="fa-solid fa-rotate-left"></i> RESET SIMULATION CAPITAL
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WALLET TRACKING MANAGER -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i class="fa-solid fa-user-gear"></i> Target Wallet Manager</h2>
+          </div>
+          <div class="panel-content">
+            <!-- Add Wallet Form -->
+            <form id="add-wallet-form" class="wallet-form">
+              <div class="form-row">
+                <div class="form-group flex-2">
+                  <label for="wallet-address">Polygon Wallet Address</label>
+                  <input type="text" id="wallet-address" placeholder="0x..." required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group flex-2">
+                  <label for="wallet-label">Target Name / Label</label>
+                  <input type="text" id="wallet-label" placeholder="e.g. Whale Alpha" required>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="wallet-multiplier">Sizing Ratio</label>
+                  <input type="number" id="wallet-multiplier" value="1.0" step="0.1" min="0.1" max="10" required>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-plus"></i> ADD WALLET TO COPY LIST
+              </button>
+            </form>
+
+            <hr class="panel-divider">
+
+            <!-- Tracked Wallets List -->
+            <div class="wallet-list-container">
+              <h3>Tracked Targets (<span id="tracked-count">0</span>)</h3>
+              <div id="wallets-list" class="wallets-list">
+                <!-- Dynamically populated -->
+                <div class="empty-state">No target wallets configured.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- COLUMN 2: POSITION & TRADE LEDGER -->
+      <section class="dash-column col-right">
+        
+        <!-- OPEN POSITIONS -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i class="fa-solid fa-briefcase"></i> Active Copied Positions</h2>
+            <span class="badge" id="positions-count">0 Positions</span>
+          </div>
+          <div class="table-responsive">
+            <table class="dashboard-table" id="positions-table">
+              <thead>
+                <tr>
+                  <th>Market Title</th>
+                  <th>Outcome</th>
+                  <th class="text-right">Shares Held</th>
+                  <th class="text-right">Avg Entry</th>
+                  <th class="text-right">Current Price</th>
+                  <th class="text-right">Total Exposure</th>
+                  <th class="text-right">Unrealized PnL</th>
+                </tr>
+              </thead>
+              <tbody id="positions-table-body">
+                <tr>
+                  <td colspan="7" class="text-center empty-table">No open positions. Waiting for target wallet signals...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- COPIED TRADES HISTORY -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i class="fa-solid fa-list-check"></i> Copy Execution Ledger</h2>
+            <span class="badge" id="trades-count">0 Executions</span>
+          </div>
+          <div class="table-responsive">
+            <table class="dashboard-table" id="trades-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Target Wallet</th>
+                  <th>Market</th>
+                  <th>Outcome</th>
+                  <th>Action</th>
+                  <th class="text-right">Target Size</th>
+                  <th class="text-right">Our Size</th>
+                  <th class="text-right">Price</th>
+                  <th class="text-right">Shares</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="trades-table-body">
+                <tr>
+                  <td colspan="10" class="text-center empty-table">Ledger is empty. No copy trades executed yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- FLOATING SYSTEM CONSOLE PANEL -->
+    <footer class="console-panel">
+      <div class="console-header">
+        <div class="console-title">
+          <i class="fa-solid fa-terminal console-icon"></i>
+          <h2>SYSTEM CONSOLE & LIVE SIGNAL STREAM</h2>
+        </div>
+        <div class="console-controls">
+          <button id="clear-console-btn" class="btn btn-sm btn-dark"><i class="fa-solid fa-trash-can"></i> Clear</button>
+          <label class="console-checkbox">
+            <input type="checkbox" id="autoscroll-toggle" checked>
+            <span>Auto-Scroll</span>
+          </label>
+        </div>
+      </div>
+      <div id="console-logs" class="console-logs">
+        <!-- Live logs populate here -->
+        <div class="log-line system">[SYSTEM] Connecting to server WebSocket stream...</div>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

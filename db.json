@@ -1,0 +1,751 @@
+{
+  "config": {
+    "isRunning": true,
+    "paperTrading": true,
+    "simulationBalance": 1000,
+    "realBalance": 0
+  },
+  "trackedWallets": [
+    {
+      "address": "0x612f07e76abb9d4d1804264a088a37a666ecaa53",
+      "label": "J-E-R",
+      "multiplier": 0.1,
+      "addedAt": "2026-05-22T20:19:22.966Z",
+      "lastChecked": "2026-05-22T20:50:23.252Z",
+      "lastProcessedTradeId": "0x072c5afe8137ccba14f4c9838542d2a6b3199dd209ff50e3dac55ab6501c94fd_0xecb137754a477f819979831ed887b0fcbc20325682bb5be399146c0d7f9e5f88_BUY"
+    },
+    {
+      "address": "0x275575bb11522eb29f82fe0a601d7c4dc94b5016",
+      "label": "zerosamrt",
+      "multiplier": 0.1,
+      "addedAt": "2026-05-22T20:20:10.537Z",
+      "lastChecked": "2026-05-22T20:50:23.841Z",
+      "lastProcessedTradeId": "0x199b850ccce47a095e5db4b9b362bef2bc184b8b9ea9cb7f97549a46e16c244c_0xd50c016598c499fceea10a1a714e48d9b4953487fe215daeaf916068fae722f1_BUY"
+    },
+    {
+      "address": "0x7f3c8979d0afa00007bae4747d5347122af05613",
+      "label": "LucasMeow",
+      "multiplier": 0.1,
+      "addedAt": "2026-05-22T20:23:33.841Z",
+      "lastChecked": "2026-05-22T20:50:23.894Z",
+      "lastProcessedTradeId": "0x6d520c25098d7bbbb255bb1fd1072cee1dc4d908220d1f63a5fddbde79eee63e_0x97947fe256c481e0f651723674a93ecf35c3999f782b56f41b40c31cb78b2af4_BUY"
+    },
+    {
+      "address": "0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e",
+      "label": "5",
+      "multiplier": 0.1,
+      "addedAt": "2026-05-22T20:26:53.193Z",
+      "lastChecked": "2026-05-22T20:50:23.971Z",
+      "lastProcessedTradeId": "0xba4d96e5a6b8a90ca9dbe5d341dae3c7f05700a0b5796f7b11c59b8da22d1481_0xfb3249f54c9bf1db7e3badd2811127f26edb47c6de8aa11a074f7038734ab102_BUY"
+    }
+  ],
+  "openPositions": [],
+  "tradeHistory": [],
+  "logs": [
+    {
+      "timestamp": "2026-05-22T18:08:49.917Z",
+      "message": "Dashboard web server listening on http://localhost:3000",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:08:49.919Z",
+      "message": "Auto-resume enabled. Initializing copy trading bot loop...",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:08:49.921Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:08:49.922Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:12:26.362Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:12:50.138Z",
+      "message": "Configuration updated: {\"isRunning\":false}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:12:50.139Z",
+      "message": "Copy trading bot engine PAUSED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:12:51.714Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:12:51.715Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:13:50.088Z",
+      "message": "Successfully removed wallet: 0xd3c9f52fde3ad0d7f573efb1c09b8b3dbef72990",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:16:14.936Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:16:15.227Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:19:41.541Z",
+      "message": "Dashboard web server listening on http://localhost:3000",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:19:41.544Z",
+      "message": "Auto-resume enabled. Initializing copy trading bot loop...",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:19:41.546Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:19:41.546Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:19:42.816Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T18:24:08.502Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:24:24.524Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:24:40.536Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:24:56.502Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:25:12.547Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:32:16.993Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:51:01.438Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:53:18.411Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:54:34.286Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:54:50.317Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:55:06.282Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:55:22.307Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:55:38.333Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:55:54.328Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:56:10.370Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:56:26.397Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:56:42.407Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:57:22.474Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:57:38.456Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:57:54.419Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:58:10.502Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:58:26.526Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:58:42.584Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T18:58:58.537Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:07:27.999Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:08:51.168Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:09:07.226Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:28:44.325Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:29:00.243Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:29:16.319Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:29:32.366Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:31:16.434Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:31:32.458Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:31:48.512Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:32:04.539Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:32:20.555Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:32:36.493Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:32:52.579Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:33:08.546Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:33:24.578Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:33:40.643Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:38:28.870Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:38:44.923Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:39:00.940Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:39:16.925Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:39:32.915Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:39:48.975Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:40:05.017Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:43:33.165Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:49:41.508Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:49:57.602Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:50:13.532Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:50:29.578Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:54:49.003Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:55:42.971Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:55:49.849Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:55:50.125Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:55:53.802Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): fetch failed",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T19:58:26.708Z",
+      "message": "Dashboard web server listening on http://localhost:3000",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:58:26.710Z",
+      "message": "Auto-resume enabled. Initializing copy trading bot loop...",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:58:26.712Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:58:26.714Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:58:26.904Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T19:58:52.530Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:00:07.806Z",
+      "message": "[TEST INJECT] Injecting fake BUY trade for wallet \"Whale Beta (Macro/Crypto)\" in \"Will BTC hit $120k by end of 2025?\"...",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:00:07.808Z",
+      "message": "[COPY SIGNAL] Detected BUY trade by Whale Beta (Macro/Crypto) in \"Will BTC hit $120k by end of 2025?\" (Yes) at $0.65",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:00:08.507Z",
+      "message": "Failed to query on-chain USDC balance for 0x534e3a479ff73a9e334df9c252ef7806509618a8: Cannot read properties of undefined (reading 'JsonRpcProvider'). Defaulting to 0.",
+      "type": "warning"
+    },
+    {
+      "timestamp": "2026-05-22T20:00:08.508Z",
+      "message": "Target Total Value: $1050.00 USDC | Target Trade Size: $1000.00 USDC | Allocation Ratio: 95.2381%",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:00:08.510Z",
+      "message": "[CALCULATED BUY] Scaling trade: Target spent 95.24000000000001% of portfolio. Our Port: $1000.00 | Target: $1050.00 | We will spend: $952.38 USDC to buy 1465.20 shares.",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:24.975Z",
+      "message": "Dashboard web server listening on http://localhost:3000",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:24.977Z",
+      "message": "Auto-resume enabled. Initializing copy trading bot loop...",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:24.980Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:24.982Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:25.037Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:25.044Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:56.413Z",
+      "message": "Simulation state reset successfully. Balance restored, all positions and history wiped.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:57.464Z",
+      "message": "[TEST INJECT] Injecting fake BUY trade for wallet \"Whale Beta (Macro/Crypto)\" in \"Will ETH flip BTC in 2025?\"...",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:57.466Z",
+      "message": "[COPY SIGNAL] Detected BUY trade by Whale Beta (Macro/Crypto) in \"Will ETH flip BTC in 2025?\" (Yes) at $0.72",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:59.154Z",
+      "message": "Failed to query on-chain USDC balance for 0x534e3a479ff73a9e334df9c252ef7806509618a8: server response 401 Unauthorized (request={  }, response={  }, error=null, info={ \"requestUrl\": \"https://polygon-rpc.com\", \"responseBody\": \"{\\\"error\\\":\\\"message: API key disabled, reason: tenant disabled, json-rpc code: -32051, rest code: 403\\\"}\", \"responseStatus\": \"401 Unauthorized\" }, code=SERVER_ERROR, version=6.16.0). Defaulting to 0.",
+      "type": "warning"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:59.155Z",
+      "message": "Target Total Value: $5250.00 USDC | Target Trade Size: $5000.00 USDC | Allocation Ratio: 95.2381%",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:03:59.157Z",
+      "message": "[CALCULATED BUY] Scaling trade: Target spent 95.24000000000001% of portfolio. Our Port: $1000.00 | Target: $5250.00 | We will spend: $952.38 USDC to buy 1322.75 shares.",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:04:10.141Z",
+      "message": "[TEST INJECT] Injecting fake SELL trade for wallet \"Whale Beta (Macro/Crypto)\" in \"Will ETH flip BTC in 2025?\"...",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:04:10.144Z",
+      "message": "[COPY SIGNAL] Detected SELL trade by Whale Beta (Macro/Crypto) in \"Will ETH flip BTC in 2025?\" (Yes) at $0.80",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:04:12.241Z",
+      "message": "Failed to query on-chain USDC balance for 0x534e3a479ff73a9e334df9c252ef7806509618a8: server response 401 Unauthorized (request={  }, response={  }, error=null, info={ \"requestUrl\": \"https://polygon-rpc.com\", \"responseBody\": \"{\\\"error\\\":\\\"message: API key disabled, reason: tenant disabled, json-rpc code: -32051, rest code: 403\\\"}\", \"responseStatus\": \"401 Unauthorized\" }, code=SERVER_ERROR, version=6.16.0). Defaulting to 0.",
+      "type": "warning"
+    },
+    {
+      "timestamp": "2026-05-22T20:04:12.242Z",
+      "message": "Target Total Value: $2100.00 USDC | Target Trade Size: $2000.00 USDC | Allocation Ratio: 95.2381%",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:04:13.041Z",
+      "message": "Target sold 100.00% of their active position shares (2500.00 of 2500.00 shares)",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:04:13.042Z",
+      "message": "[CALCULATED SELL] Scaling sell: We hold 1322.75 shares. We will sell 1322.75 shares (100.00%) for an estimated $1058.20 USDC.",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T20:04:13.882Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:07:28.469Z",
+      "message": "Simulation state reset successfully. Balance restored, all positions and history wiped.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:09:24.341Z",
+      "message": "Error polling Whale Beta (Macro/Crypto): This operation was aborted",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:18:41.299Z",
+      "message": "Successfully removed wallet: 0x534e3a479ff73a9e334df9c252ef7806509618a8",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:19:22.967Z",
+      "message": "Successfully added wallet: J-E-R (0x612f07e76abb9d4d1804264a088a37a666ecaa53)",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:19:26.721Z",
+      "message": "Initialized copy trading tracker for J-E-R. Set checkpoint to latest trade: 0x072c5afe8137ccba14f4c9838542d2a6b3199dd209ff50e3dac55ab6501c94fd_0xecb137754a477f819979831ed887b0fcbc20325682bb5be399146c0d7f9e5f88_BUY. Only subsequent trades will be copied.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:20:10.538Z",
+      "message": "Successfully added wallet: zerosamrt (0x275575bb11522eb29f82fe0a601d7c4dc94b5016)",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:20:14.822Z",
+      "message": "Initialized copy trading tracker for zerosamrt. Set checkpoint to latest trade: 0x199b850ccce47a095e5db4b9b362bef2bc184b8b9ea9cb7f97549a46e16c244c_0xd50c016598c499fceea10a1a714e48d9b4953487fe215daeaf916068fae722f1_BUY. Only subsequent trades will be copied.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:23:33.842Z",
+      "message": "Successfully added wallet: LucasMeow (0x7f3c8979d0afa00007bae4747d5347122af05613)",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:23:34.719Z",
+      "message": "Initialized copy trading tracker for LucasMeow. Set checkpoint to latest trade: 0x6d520c25098d7bbbb255bb1fd1072cee1dc4d908220d1f63a5fddbde79eee63e_0x97947fe256c481e0f651723674a93ecf35c3999f782b56f41b40c31cb78b2af4_BUY. Only subsequent trades will be copied.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:23:59.304Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:24:00.087Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:24:06.377Z",
+      "message": "Configuration updated: {\"isRunning\":false}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:24:06.378Z",
+      "message": "Copy trading bot engine PAUSED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:24:10.297Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:24:10.298Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:25:05.011Z",
+      "message": "Failed to add wallet: Invalid address format \"Oxd5ccdf772f795547e299de57f47966e24de8dea4\"",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:25:26.834Z",
+      "message": "Failed to add wallet: Invalid address format \"Oxd5ccdf772f795547e299de57f47966e24de8dea4\"",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:25:52.828Z",
+      "message": "Failed to add wallet: Invalid address format \"Oxd5ccdf772f795547e299de57f47966e24de8dea4\"",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:26:53.195Z",
+      "message": "Successfully added wallet: 5 (0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e)",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:27:00.111Z",
+      "message": "Initialized copy trading tracker for 5. Set checkpoint to latest trade: 0xba4d96e5a6b8a90ca9dbe5d341dae3c7f05700a0b5796f7b11c59b8da22d1481_0xfb3249f54c9bf1db7e3badd2811127f26edb47c6de8aa11a074f7038734ab102_BUY. Only subsequent trades will be copied.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:27:24.530Z",
+      "message": "Failed to add wallet: Invalid address format \"Ox69ea0d77ef34f1acb03aaed901df7620fc4215cd\"",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:28:00.857Z",
+      "message": "Failed to add wallet: Invalid address format \"Oxf5fe759cece500f58a431ef8dacea321f6e3e23c\"",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:21.126Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:21.872Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:27.977Z",
+      "message": "Configuration updated: {\"isRunning\":false}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:27.978Z",
+      "message": "Copy trading bot engine PAUSED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:32.784Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:32.786Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:39.894Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:31:40.139Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:32:03.914Z",
+      "message": "Configuration updated: {\"isRunning\":false}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:32:03.916Z",
+      "message": "Copy trading bot engine PAUSED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:32:06.098Z",
+      "message": "Configuration updated: {\"isRunning\":true}",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:32:06.099Z",
+      "message": "Copy trading bot engine STARTED.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:44:18.166Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:44:18.957Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    }
+  ]
+}

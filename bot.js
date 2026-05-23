@@ -307,12 +307,51 @@ async function processCopiedTrade(wallet, activity) {
   }
 }
 
+// Sync open position prices from Polymarket
+async function syncPrices() {
+  const currentDb = db.readDb();
+  if (currentDb.openPositions.length === 0) return;
+  
+  const conditionIds = [...new Set(currentDb.openPositions.map(p => p.marketConditionId))];
+  const priceUpdates = {};
+
+  await Promise.all(conditionIds.map(async (cid) => {
+    try {
+      const url = `https://gamma-api.polymarket.com/markets?condition_id=${cid}`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const markets = await res.json();
+      if (!markets || markets.length === 0) return;
+      
+      const market = markets[0];
+      let outcomes = market.outcomes;
+      if (typeof outcomes === 'string') outcomes = JSON.parse(outcomes);
+      let outcomePrices = market.outcomePrices;
+      if (typeof outcomePrices === 'string') outcomePrices = JSON.parse(outcomePrices);
+      
+      outcomes.forEach((out, idx) => {
+        const tokenID = cid + "_" + out.toLowerCase();
+        priceUpdates[tokenID] = parseFloat(outcomePrices[idx]);
+      });
+    } catch (err) {
+      // ignore silently to not spam logs
+    }
+  }));
+
+  const updated = db.updatePositionPrices(priceUpdates);
+  if (updated) {
+    broadcast('state_update', db.readDb());
+  }
+}
+
 // Single step execution of the polling loop
 async function runBotCycle() {
   if (isBotProcessing) return;
   isBotProcessing = true;
 
   try {
+    await syncPrices();
+    
     const currentDb = db.readDb();
     if (!currentDb.config.isRunning) {
       isBotProcessing = false;

@@ -2,7 +2,7 @@
   "config": {
     "isRunning": true,
     "paperTrading": true,
-    "simulationBalance": 1000,
+    "simulationBalance": 904.7619047619048,
     "realBalance": 0
   },
   "trackedWallets": [
@@ -11,7 +11,7 @@
       "label": "J-E-R",
       "multiplier": 0.1,
       "addedAt": "2026-05-22T20:19:22.966Z",
-      "lastChecked": "2026-05-22T20:50:23.252Z",
+      "lastChecked": "2026-05-22T21:10:48.402Z",
       "lastProcessedTradeId": "0x072c5afe8137ccba14f4c9838542d2a6b3199dd209ff50e3dac55ab6501c94fd_0xecb137754a477f819979831ed887b0fcbc20325682bb5be399146c0d7f9e5f88_BUY"
     },
     {
@@ -19,7 +19,7 @@
       "label": "zerosamrt",
       "multiplier": 0.1,
       "addedAt": "2026-05-22T20:20:10.537Z",
-      "lastChecked": "2026-05-22T20:50:23.841Z",
+      "lastChecked": "2026-05-22T21:10:48.477Z",
       "lastProcessedTradeId": "0x199b850ccce47a095e5db4b9b362bef2bc184b8b9ea9cb7f97549a46e16c244c_0xd50c016598c499fceea10a1a714e48d9b4953487fe215daeaf916068fae722f1_BUY"
     },
     {
@@ -27,7 +27,7 @@
       "label": "LucasMeow",
       "multiplier": 0.1,
       "addedAt": "2026-05-22T20:23:33.841Z",
-      "lastChecked": "2026-05-22T20:50:23.894Z",
+      "lastChecked": "2026-05-22T21:10:48.519Z",
       "lastProcessedTradeId": "0x6d520c25098d7bbbb255bb1fd1072cee1dc4d908220d1f63a5fddbde79eee63e_0x97947fe256c481e0f651723674a93ecf35c3999f782b56f41b40c31cb78b2af4_BUY"
     },
     {
@@ -35,12 +35,43 @@
       "label": "5",
       "multiplier": 0.1,
       "addedAt": "2026-05-22T20:26:53.193Z",
-      "lastChecked": "2026-05-22T20:50:23.971Z",
-      "lastProcessedTradeId": "0xba4d96e5a6b8a90ca9dbe5d341dae3c7f05700a0b5796f7b11c59b8da22d1481_0xfb3249f54c9bf1db7e3badd2811127f26edb47c6de8aa11a074f7038734ab102_BUY"
+      "lastChecked": "2026-05-22T21:10:48.557Z",
+      "lastProcessedTradeId": "0xc530e17415beebea1c0a4b6656f0d59298c96b30ae6103360a4c530709078c19_0xa4f0eb84a9f86ad19fa78597a6036895dc83e8cf3eb45f762606ea02e2e49e77_BUY"
     }
   ],
-  "openPositions": [],
-  "tradeHistory": [],
+  "openPositions": [
+    {
+      "id": "pos_1779484195289_pzt0b",
+      "marketConditionId": "0xa4f0eb84a9f86ad19fa78597a6036895dc83e8cf3eb45f762606ea02e2e49e77",
+      "marketTitle": "Will Trump say \"Make America Great Again\" this week?",
+      "outcome": "Yes",
+      "tokenID": "0xa4f0eb84a9f86ad19fa78597a6036895dc83e8cf3eb45f762606ea02e2e49e77_yes",
+      "shares": 104.66680583582679,
+      "avgPricePaid": 0.9099168975069252,
+      "currentPrice": 0.9099168975069252,
+      "value": 95.23809523809524,
+      "unrealizedPnL": 0,
+      "trackedWallet": "0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e"
+    }
+  ],
+  "tradeHistory": [
+    {
+      "id": "trd_1779484195290_09nnc",
+      "timestamp": "2026-05-22T21:09:55.290Z",
+      "trackedWallet": "0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e",
+      "trackedWalletLabel": "5",
+      "marketTitle": "Will Trump say \"Make America Great Again\" this week?",
+      "outcome": "Yes",
+      "side": "BUY",
+      "targetTradeSize": 46.1529,
+      "targetPortfolioValue": 48.460545,
+      "ourTradeSize": 95.23809523809524,
+      "executionPrice": 0.9099168975069252,
+      "shares": 104.66680583582679,
+      "mode": "PAPER",
+      "status": "SUCCESS"
+    }
+  ],
   "logs": [
     {
       "timestamp": "2026-05-22T18:08:49.917Z",
@@ -746,6 +777,51 @@
       "timestamp": "2026-05-22T20:44:18.957Z",
       "message": "Control panel dashboard connected via WebSockets.",
       "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:57:02.068Z",
+      "message": "Control panel dashboard disconnected.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:57:02.839Z",
+      "message": "Control panel dashboard connected via WebSockets.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-22T20:59:35.898Z",
+      "message": "Error polling 5: This operation was aborted",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:59:50.569Z",
+      "message": "Error polling J-E-R: This operation was aborted",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T20:59:57.578Z",
+      "message": "Error polling zerosamrt: This operation was aborted",
+      "type": "error"
+    },
+    {
+      "timestamp": "2026-05-22T21:09:53.726Z",
+      "message": "[COPY SIGNAL] Detected BUY trade by 5 in \"Will Trump say \"Make America Great Again\" this week?\" (Yes) at $0.91",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T21:09:55.285Z",
+      "message": "Failed to query on-chain USDC balance for 0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e: server response 401 Unauthorized (request={  }, response={  }, error=null, info={ \"requestUrl\": \"https://polygon-rpc.com\", \"responseBody\": \"{\\\"error\\\":\\\"message: API key disabled, reason: tenant disabled, json-rpc code: -32051, rest code: 403\\\"}\", \"responseStatus\": \"401 Unauthorized\" }, code=SERVER_ERROR, version=6.16.0). Defaulting to 0.",
+      "type": "warning"
+    },
+    {
+      "timestamp": "2026-05-22T21:09:55.286Z",
+      "message": "Target Total Value: $48.46 USDC | Target Trade Size: $46.15 USDC | Allocation Ratio: 95.2381%",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-22T21:09:55.287Z",
+      "message": "[CALCULATED BUY] Scaling trade: Target spent 95.24000000000001% of portfolio. Our Port: $1000.00 | Target: $48.46 | We will spend: $95.24 USDC to buy 104.67 shares.",
+      "type": "info"
     }
   ]
 }

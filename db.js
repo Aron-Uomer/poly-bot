@@ -288,6 +288,28 @@ function resetSimulation() {
   addLog("Simulation state reset successfully. Balance restored, all positions and history wiped.", "system");
 }
 
+function updatePositionPrices(priceUpdates) {
+  const db = readDb();
+  let updated = false;
+  
+  for (const pos of db.openPositions) {
+    if (priceUpdates[pos.tokenID] !== undefined) {
+      const newPrice = priceUpdates[pos.tokenID];
+      if (pos.currentPrice !== newPrice) {
+        pos.currentPrice = newPrice;
+        pos.value = pos.shares * newPrice;
+        pos.unrealizedPnL = pos.value - (pos.shares * pos.avgPricePaid);
+        updated = true;
+      }
+    }
+  }
+  
+  if (updated) {
+    saveDb(db);
+  }
+  return updated;
+}
+
 module.exports = {
   readDb,
   saveDb,
@@ -297,5 +319,6 @@ module.exports = {
   removeTrackedWallet,
   updateWalletProcessedState,
   executeSimulatedTrade,
-  resetSimulation
+  resetSimulation,
+  updatePositionPrices
 };

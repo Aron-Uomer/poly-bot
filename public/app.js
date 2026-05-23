@@ -178,8 +178,10 @@ function renderFullState(state) {
   const positionsValSum = openPositions.reduce((sum, pos) => sum + (pos.shares * pos.currentPrice), 0);
   const totalNAV = currentUSDC + positionsValSum;
   
-  // Simulated initial balance is defaulted or configured in env
-  const startingBalance = 1000.0; // Standard reference
+  // Simulated initial balance is loaded from config
+  const startingBalance = config.paperTrading 
+    ? (config.simulationStartingBalance !== undefined ? config.simulationStartingBalance : 1000.0)
+    : (config.realStartingBalance !== undefined ? config.realStartingBalance : config.realBalance);
   const absolutePnL = totalNAV - startingBalance;
   const percentPnL = startingBalance > 0 ? (absolutePnL / startingBalance) * 100 : 0;
 

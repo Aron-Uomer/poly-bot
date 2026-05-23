@@ -11,6 +11,7 @@ function initDb() {
         isRunning: true,
         paperTrading: true,
         simulationBalance: 1000.0,
+        simulationStartingBalance: 1000.0,
         realBalance: 0.0
       },
       trackedWallets: [
@@ -280,7 +281,9 @@ function executeSimulatedTrade(trade) {
 // Reset paper trading balance and positions to initial state
 function resetSimulation() {
   const db = readDb();
-  db.config.simulationBalance = parseFloat(process.env.SIMULATION_STARTING_BALANCE) || 1000.0;
+  const startingVal = parseFloat(process.env.SIMULATION_STARTING_BALANCE) || 1000.0;
+  db.config.simulationBalance = startingVal;
+  db.config.simulationStartingBalance = startingVal;
   db.openPositions = [];
   db.tradeHistory = [];
   

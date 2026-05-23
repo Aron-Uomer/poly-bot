@@ -126,7 +126,9 @@ app.post('/api/config', (req, res) => {
     updates.paperTrading = !!paperTrading;
   }
   if (simulationBalance !== undefined) {
-    updates.simulationBalance = parseFloat(simulationBalance);
+    const balanceVal = parseFloat(simulationBalance);
+    updates.simulationBalance = balanceVal;
+    updates.simulationStartingBalance = balanceVal;
   }
   
   try {

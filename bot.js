@@ -52,8 +52,15 @@ async function getTargetPortfolioValue(address, fallback = 0) {
       throw new Error(`Data API returned status ${res.status}`);
     }
     const data = await res.json();
-    // API returns {"totalValue": 1234.56} or similar
-    const value = parseFloat(data.totalValue) || parseFloat(data.value) || 0;
+    
+    // API returns [{"user":"0x...", "value": 123.45}] or {"totalValue": 123.45}
+    let rawVal = 0;
+    if (Array.isArray(data) && data.length > 0) {
+      rawVal = data[0].value !== undefined ? data[0].value : data[0].totalValue;
+    } else if (data) {
+      rawVal = data.value !== undefined ? data.value : data.totalValue;
+    }
+    const value = parseFloat(rawVal) || 0;
     return value;
   } catch (err) {
     db.addLog(`Failed to fetch portfolio value for ${address}: ${err.message}. Using fallback $${fallback}.`, 'warning');
@@ -72,13 +79,15 @@ async function getTargetPositionSize(address, conditionId, outcome) {
     const positions = await res.json();
     
     // Find matching position by conditionId and outcome
+    // We check both standard and nested fields for maximum API response resilience
     const match = positions.find(pos => 
       pos.conditionId?.toLowerCase() === conditionId?.toLowerCase() &&
-      pos.token?.outcome?.toLowerCase() === outcome?.toLowerCase()
+      (pos.outcome?.toLowerCase() === outcome?.toLowerCase() || pos.token?.outcome?.toLowerCase() === outcome?.toLowerCase())
     );
     
-    if (match && match.position) {
-      return parseFloat(match.position.size) || 0;
+    if (match) {
+      const sizeVal = match.size !== undefined ? match.size : (match.position?.size !== undefined ? match.position.size : match.amount);
+      return parseFloat(sizeVal) || 0;
     }
     return 0;
   } catch (err) {

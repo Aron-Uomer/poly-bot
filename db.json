@@ -2,8 +2,9 @@
   "config": {
     "isRunning": true,
     "paperTrading": true,
-    "simulationBalance": 904.7619047619048,
-    "realBalance": 0
+    "simulationBalance": 999.4829170428482,
+    "realBalance": 0,
+    "simulationStartingBalance": 1000
   },
   "trackedWallets": [
     {
@@ -41,88 +42,54 @@
   ],
   "openPositions": [
     {
-      "id": "pos_1779484195289_pzt0b",
+      "id": "pos_1779564364662_9u3r9",
       "marketConditionId": "0xa4f0eb84a9f86ad19fa78597a6036895dc83e8cf3eb45f762606ea02e2e49e77",
-      "marketTitle": "Will Trump say \"Make America Great Again\" this week?",
+      "marketTitle": "Will Trump say MAGA this week?",
       "outcome": "Yes",
       "tokenID": "0xa4f0eb84a9f86ad19fa78597a6036895dc83e8cf3eb45f762606ea02e2e49e77_yes",
-      "shares": 104.66680583582679,
-      "avgPricePaid": 0.9099168975069252,
-      "currentPrice": 0.9099168975069252,
-      "value": 95.23809523809524,
-      "unrealizedPnL": 0,
-      "trackedWallet": "0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e"
+      "shares": 0.6083316025454966,
+      "avgPricePaid": 0.9000000000000001,
+      "currentPrice": 0.95,
+      "value": 0.5779150224182217,
+      "unrealizedPnL": 0.03041658012727472,
+      "trackedWallet": "0x612f07e76abb9d4d1804264a088a37a666ecaa53"
     }
   ],
   "tradeHistory": [
     {
-      "id": "trd_1779484195290_09nnc",
-      "timestamp": "2026-05-22T21:09:55.290Z",
-      "trackedWallet": "0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e",
-      "trackedWalletLabel": "5",
-      "marketTitle": "Will Trump say \"Make America Great Again\" this week?",
+      "id": "trd_1779564364827_2gcvc",
+      "timestamp": "2026-05-23T19:26:04.827Z",
+      "trackedWallet": "0x612f07e76abb9d4d1804264a088a37a666ecaa53",
+      "trackedWalletLabel": "J-E-R",
+      "marketTitle": "Will Trump say MAGA this week?",
+      "outcome": "Yes",
+      "side": "SELL",
+      "targetTradeSize": 263.88,
+      "targetPortfolioValue": 1000,
+      "ourTradeSize": 0.577894217643853,
+      "executionPrice": 0.95,
+      "shares": 0.6083097027830031,
+      "mode": "PAPER",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "trd_1779564364663_ne55t",
+      "timestamp": "2026-05-23T19:26:04.663Z",
+      "trackedWallet": "0x612f07e76abb9d4d1804264a088a37a666ecaa53",
+      "trackedWalletLabel": "J-E-R",
+      "marketTitle": "Will Trump say MAGA this week?",
       "outcome": "Yes",
       "side": "BUY",
-      "targetTradeSize": 46.1529,
-      "targetPortfolioValue": 48.460545,
-      "ourTradeSize": 95.23809523809524,
-      "executionPrice": 0.9099168975069252,
-      "shares": 104.66680583582679,
+      "targetTradeSize": 500,
+      "targetPortfolioValue": 45663.0523,
+      "ourTradeSize": 1.0949771747956498,
+      "executionPrice": 0.9,
+      "shares": 1.2166413053284997,
       "mode": "PAPER",
       "status": "SUCCESS"
     }
   ],
   "logs": [
-    {
-      "timestamp": "2026-05-22T18:08:49.917Z",
-      "message": "Dashboard web server listening on http://localhost:3000",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:08:49.919Z",
-      "message": "Auto-resume enabled. Initializing copy trading bot loop...",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:08:49.921Z",
-      "message": "Configuration updated: {\"isRunning\":true}",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:08:49.922Z",
-      "message": "Copy trading bot engine STARTED.",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:12:26.362Z",
-      "message": "Control panel dashboard connected via WebSockets.",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:12:50.138Z",
-      "message": "Configuration updated: {\"isRunning\":false}",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:12:50.139Z",
-      "message": "Copy trading bot engine PAUSED.",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:12:51.714Z",
-      "message": "Configuration updated: {\"isRunning\":true}",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:12:51.715Z",
-      "message": "Copy trading bot engine STARTED.",
-      "type": "system"
-    },
-    {
-      "timestamp": "2026-05-22T18:13:50.088Z",
-      "message": "Successfully removed wallet: 0xd3c9f52fde3ad0d7f573efb1c09b8b3dbef72990",
-      "type": "system"
-    },
     {
       "timestamp": "2026-05-22T18:16:14.936Z",
       "message": "Control panel dashboard disconnected.",
@@ -821,6 +788,56 @@
     {
       "timestamp": "2026-05-22T21:09:55.287Z",
       "message": "[CALCULATED BUY] Scaling trade: Target spent 95.24000000000001% of portfolio. Our Port: $1000.00 | Target: $48.46 | We will spend: $95.24 USDC to buy 104.67 shares.",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:02.721Z",
+      "message": "Simulation state reset successfully. Balance restored, all positions and history wiped.",
+      "type": "system"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:02.724Z",
+      "message": "[COPY SIGNAL] Detected BUY trade by J-E-R in \"Will Trump say MAGA this week?\" (Yes) at $0.90",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.658Z",
+      "message": "Failed to query on-chain USDC balance for 0x612f07e76abb9d4d1804264a088a37a666ecaa53: server response 401 Unauthorized (request={  }, response={  }, error=null, info={ \"requestUrl\": \"https://polygon-rpc.com\", \"responseBody\": \"{\\\"error\\\":\\\"message: API key disabled, reason: tenant disabled, json-rpc code: -32051, rest code: 403\\\"}\", \"responseStatus\": \"401 Unauthorized\" }, code=SERVER_ERROR, version=6.16.0). Defaulting to 0.",
+      "type": "warning"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.659Z",
+      "message": "Target Total Value: $45663.05 USDC | Target Trade Size: $500.00 USDC | Allocation Ratio: 1.0950%",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.660Z",
+      "message": "[CALCULATED BUY] Scaling trade: Target spent 1.09% of portfolio. Our Port: $1000.00 | Target: $45663.05 | We will spend: $1.09 USDC to buy 1.22 shares.",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.669Z",
+      "message": "[COPY SIGNAL] Detected SELL trade by J-E-R in \"Will Trump say MAGA this week?\" (Yes) at $0.95",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.822Z",
+      "message": "Failed to query on-chain USDC balance for 0x612f07e76abb9d4d1804264a088a37a666ecaa53: server response 401 Unauthorized (request={  }, response={  }, error=null, info={ \"requestUrl\": \"https://polygon-rpc.com\", \"responseBody\": \"{\\\"error\\\":\\\"message: API key disabled, reason: tenant disabled, json-rpc code: -32051, rest code: 403\\\"}\", \"responseStatus\": \"401 Unauthorized\" }, code=SERVER_ERROR, version=6.16.0). Defaulting to 0.",
+      "type": "warning"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.823Z",
+      "message": "Target Total Value: $1000.00 USDC | Target Trade Size: $263.88 USDC | Allocation Ratio: 26.3880%",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.825Z",
+      "message": "Target sold 50.00% of their active position shares (277.77 of 555.55 shares)",
+      "type": "info"
+    },
+    {
+      "timestamp": "2026-05-23T19:26:04.826Z",
+      "message": "[CALCULATED SELL] Scaling sell: We hold 1.22 shares. We will sell 0.61 shares (50.00%) for an estimated $0.58 USDC.",
       "type": "info"
     }
   ]

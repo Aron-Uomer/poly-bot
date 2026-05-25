@@ -12,7 +12,8 @@ function initDb() {
         paperTrading: true,
         simulationBalance: 1000.0,
         simulationStartingBalance: 1000.0,
-        realBalance: 0.0
+        realBalance: 0.0,
+        totalRealizedPnL: 0.0
       },
       trackedWallets: [
         {
@@ -178,6 +179,11 @@ function executeSimulatedTrade(trade) {
   const shareCount = parseFloat(shares);
   const price = parseFloat(executionPrice);
   
+  // Declare PnL tracking variables before the BUY/SELL branches
+  // so they are guaranteed to be populated when the tradeRecord is built.
+  let tradeRealizedPnL = null;
+  let tradeRevenue = null;
+  
   if (side === 'BUY') {
     // Check if we have enough simulated balance
     if (db.config.simulationBalance < cost) {
@@ -232,6 +238,14 @@ function executeSimulatedTrade(trade) {
     const costBasisReleased = sellShares * position.avgPricePaid;
     const realizedPnL = revenue - costBasisReleased;
     
+    // Capture PnL values for the trade history record
+    tradeRealizedPnL = realizedPnL;
+    tradeRevenue = revenue;
+    
+    // Accumulate into the persistent running total
+    if (typeof db.config.totalRealizedPnL !== 'number') db.config.totalRealizedPnL = 0;
+    db.config.totalRealizedPnL += realizedPnL;
+    
     // Add revenue back to simulated balance
     db.config.simulationBalance += revenue;
     
@@ -240,16 +254,18 @@ function executeSimulatedTrade(trade) {
     position.value = position.shares * price;
     position.unrealizedPnL = position.shares * (price - position.avgPricePaid);
     
-    addLog(`[SIM SUCCESS] Sold ${sellShares.toFixed(2)} shares of "${marketTitle}" (${outcome}) at $${price.toFixed(2)} each. Received: $${revenue.toFixed(2)} USDC. Realized PnL: $${realizedPnL.toFixed(2)} USDC.`, 'success');
+    const pnlSign = realizedPnL >= 0 ? '+' : '';
+    addLog(`[SIM SUCCESS] Sold ${sellShares.toFixed(2)} shares of "${marketTitle}" (${outcome}) at $${price.toFixed(2)} each. Received: $${revenue.toFixed(2)} USDC. Realized PnL: ${pnlSign}$${realizedPnL.toFixed(2)} USDC.`, 'success');
     
     // Clean up empty position
     if (position.shares <= 0.01) {
       db.openPositions = db.openPositions.filter(p => p.tokenID !== tokenID);
-      addLog(`[SIM] Position in "${marketTitle}" (${outcome}) closed.`, 'info');
+      addLog(`[SIM] Position in "${marketTitle}" (${outcome}) fully closed.`, 'info');
     }
   }
   
-  // Record trade in history
+  // Record trade in history — built AFTER the BUY/SELL blocks so all
+  // computed values (tradeRealizedPnL, tradeRevenue) are already populated.
   const tradeRecord = {
     id: `trd_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     timestamp: new Date().toISOString(),
@@ -264,7 +280,10 @@ function executeSimulatedTrade(trade) {
     executionPrice: price,
     shares: shareCount,
     mode: "PAPER",
-    status: "SUCCESS"
+    status: "SUCCESS",
+    // Realized P&L is only available on SELL trades
+    realizedPnL: tradeRealizedPnL,
+    revenue: tradeRevenue
   };
   
   db.tradeHistory.unshift(tradeRecord);
@@ -284,6 +303,7 @@ function resetSimulation() {
   const startingVal = parseFloat(process.env.SIMULATION_STARTING_BALANCE) || 1000.0;
   db.config.simulationBalance = startingVal;
   db.config.simulationStartingBalance = startingVal;
+  db.config.totalRealizedPnL = 0.0;
   db.openPositions = [];
   db.tradeHistory = [];
   

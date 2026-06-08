@@ -49,57 +49,19 @@
   padding: 0;
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-deep);
   color: var(--text-main);
   min-height: 100vh;
   position: relative;
-  overflow-x: hidden;
-  padding-bottom: 240px; /* Space for fixed console footer */
 }
 
-/* BACKGROUND GLOWING ORBS ANIMATION */
-.glow-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  z-index: -1;
-  opacity: 0.12;
-  animation: float 25s infinite alternate ease-in-out;
-}
-
-.orb-1 {
-  width: 500px;
-  height: 500px;
-  background-color: var(--color-primary);
-  top: -10%;
-  left: -5%;
-}
-
-.orb-2 {
-  width: 600px;
-  height: 600px;
-  background-color: var(--color-system);
-  bottom: 10%;
-  right: -10%;
-  animation-duration: 35s;
-}
-
-.orb-3 {
-  width: 400px;
-  height: 400px;
-  background-color: var(--color-success);
-  top: 40%;
-  left: 45%;
-  animation-duration: 20s;
-}
-
-@keyframes float {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(50px, 80px) scale(1.15); }
-  100% { transform: translate(-30px, -40px) scale(0.9); }
-}
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
@@ -327,7 +289,7 @@ body {
   margin-bottom: 24px;
 }
 
-@media (max-width: 1250px) {
+@media (max-width: 1600px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -337,6 +299,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
 }
 
 .glass-panel {
@@ -890,104 +853,4 @@ input:checked + .slider:before {
   color: var(--color-warning);
 }
 
-/* ==========================================================================
-   SYSTEM CONSOLE PANEL STYLING
-   ========================================================================== */
-.console-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 220px;
-  background: #040810;
-  border-top: 1px solid var(--border-glow);
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-}
 
-.console-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 24px;
-  background: #060a14;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.console-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.console-icon {
-  color: var(--color-primary);
-  font-size: 14px;
-  text-shadow: 0 0 6px var(--color-primary-glow);
-}
-
-.console-title h2 {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-}
-
-.console-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.console-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.console-checkbox input {
-  accent-color: var(--color-primary);
-}
-
-.console-logs {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 24px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.log-line {
-  color: var(--text-main);
-  white-space: pre-wrap;
-}
-
-.log-line.system {
-  color: var(--color-primary);
-}
-
-.log-line.info {
-  color: var(--text-muted);
-}
-
-.log-line.success {
-  color: var(--color-success);
-}
-
-.log-line.warning {
-  color: var(--color-warning);
-}
-
-.log-line.error {
-  color: var(--color-danger);
-}

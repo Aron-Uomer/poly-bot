@@ -4,43 +4,53 @@ const clob = require('./clob');
 require('dotenv').config();
 
 const USDCE_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const USDC_ADDRESS  = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359";
 const ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)"
+  "function balanceOf(address owner) view returns (uint256)"
 ];
 
-let botIntervalId = null;
-let isBotProcessing = false;
+let botIntervalId    = null;
+let isBotProcessing  = false;
 let wsBroadcastCallback = null;
 
-// Set up dynamic WS broadcasting callback
 function setBroadcastCallback(callback) {
   wsBroadcastCallback = callback;
 }
 
-// Broadcast updates to front-end dashboard
 function broadcast(type, data) {
-  if (wsBroadcastCallback) {
-    wsBroadcastCallback({ type, data });
-  }
+  if (wsBroadcastCallback) wsBroadcastCallback({ type, data });
 }
 
-// Fetch on-chain USDC.e balance on Polygon
-async function getTargetWalletUSDCBalance(address) {
-  const rpcUrl = process.env.POLYGON_RPC_URL || "https://polygon-rpc.com";
-  try {
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const contract = new ethers.Contract(USDCE_ADDRESS, ERC20_ABI, provider);
-    const balance = await contract.balanceOf(address);
-    const formatted = parseFloat(ethers.formatUnits(balance, 6));
-    return formatted;
-  } catch (err) {
-    db.addLog(`Failed to query on-chain USDC balance for ${address}: ${err.message}. Defaulting to 0.`, 'warning');
-    return 0;
+const FALLBACK_RPCS = [
+  "https://polygon-bor-rpc.publicnode.com",
+  "https://polygon.llamarpc.com",
+  "https://polygon.drpc.org",
+  "https://rpc-mainnet.matic.quiknode.pro",
+  "https://polygon-rpc.com",
+  process.env.POLYGON_RPC_URL,
+].filter(Boolean);
+
+async function getOnChainUSDCBalance(address) {
+  for (const rpcUrl of FALLBACK_RPCS) {
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      provider._getConnection().timeout = 5000;
+      const usdcContract  = new ethers.Contract(USDC_ADDRESS,  ERC20_ABI, provider);
+      const usdceContract = new ethers.Contract(USDCE_ADDRESS, ERC20_ABI, provider);
+      const [usdcBal, usdceBal] = await Promise.all([
+        usdcContract.balanceOf(address),
+        usdceContract.balanceOf(address),
+      ]);
+      const total = parseFloat(ethers.formatUnits(usdcBal, 6))
+                  + parseFloat(ethers.formatUnits(usdceBal, 6));
+      return total;
+    } catch (err) {
+      // Try next RPC silently
+    }
   }
+  return 0;
 }
 
-// Fetch target wallet portfolio value from Polymarket API
 async function getTargetPortfolioValue(address, fallback = 0) {
   try {
     const url = `https://data-api.polymarket.com/value?user=${address}`;
@@ -48,59 +58,47 @@ async function getTargetPortfolioValue(address, fallback = 0) {
     const timeout = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
-    if (!res.ok) {
-      throw new Error(`Data API returned status ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Data API returned status ${res.status}`);
     const data = await res.json();
-    
-    // API returns [{"user":"0x...", "value": 123.45}] or {"totalValue": 123.45}
     let rawVal = 0;
     if (Array.isArray(data) && data.length > 0) {
       rawVal = data[0].value !== undefined ? data[0].value : data[0].totalValue;
     } else if (data) {
       rawVal = data.value !== undefined ? data.value : data.totalValue;
     }
-    const value = parseFloat(rawVal) || 0;
-    return value;
+    return parseFloat(rawVal) || 0;
   } catch (err) {
-    db.addLog(`Failed to fetch portfolio value for ${address}: ${err.message}. Using fallback $${fallback}.`, 'warning');
     return fallback;
   }
 }
 
-// Fetch target wallet's current positions to determine sell percentages
 async function getTargetPositionSize(address, conditionId, outcome) {
   try {
     const url = `https://data-api.polymarket.com/positions?user=${address}`;
     const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`Data API positions returned status ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Data API positions returned status ${res.status}`);
     const positions = await res.json();
-    
-    // Find matching position by conditionId and outcome
-    // We check both standard and nested fields for maximum API response resilience
-    const match = positions.find(pos => 
+    const match = positions.find(pos =>
       pos.conditionId?.toLowerCase() === conditionId?.toLowerCase() &&
-      (pos.outcome?.toLowerCase() === outcome?.toLowerCase() || pos.token?.outcome?.toLowerCase() === outcome?.toLowerCase())
+      (pos.outcome?.toLowerCase() === outcome?.toLowerCase() ||
+       pos.token?.outcome?.toLowerCase() === outcome?.toLowerCase())
     );
-    
     if (match) {
-      const sizeVal = match.size !== undefined ? match.size : (match.position?.size !== undefined ? match.position.size : match.amount);
+      const sizeVal = match.size !== undefined
+        ? match.size
+        : (match.position?.size !== undefined ? match.position.size : match.amount);
       return parseFloat(sizeVal) || 0;
     }
     return 0;
   } catch (err) {
-    db.addLog(`Failed to fetch positions for ${address}: ${err.message}`, 'warning');
-    return null; // Return null to indicate API error
+    return null;
   }
 }
 
-// Process a detected trade activity from a tracked wallet
 async function processCopiedTrade(wallet, activity) {
   const currentDb = db.readDb();
   const isPaper = currentDb.config.paperTrading;
-  
+
   const {
     conditionId,
     side,
@@ -109,350 +107,363 @@ async function processCopiedTrade(wallet, activity) {
     price: executionPrice,
     outcome,
     title: marketTitle,
-    transactionHash
   } = activity;
 
   const targetTradeUSDC = parseFloat(targetUsdcSize) || 0;
-  const price = parseFloat(executionPrice) || 0;
-  const shares = parseFloat(targetShares) || 0;
-  
-  if (targetTradeUSDC <= 0 || price <= 0 || shares <= 0) {
-    db.addLog(`Skipping trade for ${wallet.label}: Invalid size or price parameters.`, 'warning');
-    return;
+  const price           = parseFloat(executionPrice)  || 0;
+  const shares          = parseFloat(targetShares)    || 0;
+
+  if (targetTradeUSDC <= 0 || price <= 0 || shares <= 0) return;
+
+  // For SELL — silently skip if we don't hold the position
+  if (side === 'SELL') {
+    const tokenID   = conditionId + "_" + outcome.toLowerCase();
+    const positions = isPaper ? currentDb.openPositions : (currentDb.livePositions || []);
+    const ourPosition = positions.find(p => p.tokenID === tokenID);
+    if (!ourPosition || ourPosition.shares <= 0) return;
   }
 
-  db.addLog(`[COPY SIGNAL] Detected ${side} trade by ${wallet.label} in "${marketTitle}" (${outcome}) at $${price.toFixed(2)}`, 'info');
-
-  // Step 1: Calculate Target Portfolio Value
-  // Use the trade size itself as a fallback floor so ratio math still works when the API is down
+  // Step 1: Target portfolio value
   const targetPositionsVal = await getTargetPortfolioValue(wallet.address, targetTradeUSDC * 10);
-  const targetUsdcVal = await getTargetWalletUSDCBalance(wallet.address);
+  const targetUsdcVal      = await getOnChainUSDCBalance(wallet.address);
   let targetTotalPortfolio = targetPositionsVal + targetUsdcVal;
-  
-  // Guard against API lag where total portfolio is less than the trade itself
   if (targetTotalPortfolio < targetTradeUSDC) {
-    targetTotalPortfolio = targetTradeUSDC * 1.05; 
+    targetTotalPortfolio = targetTradeUSDC * 1.05;
   }
-  
-  // Step 2: Compute Proportional Ratio (R)
-  const R = targetTradeUSDC / targetTotalPortfolio;
-  db.addLog(`Target Total Value: $${targetTotalPortfolio.toFixed(2)} USDC | Target Trade Size: $${targetTradeUSDC.toFixed(2)} USDC | Allocation Ratio: ${(R * 100).toFixed(4)}%`, 'info');
 
-  // Step 3: Compute Our Portfolio Value
+  // Step 2: Proportional ratio
+  const R = targetTradeUSDC / targetTotalPortfolio;
+
+  // Step 3: Our portfolio value
   let ourTotalPortfolio = 0;
-  let ourUsdcBalance = 0;
-  
+  let ourUsdcBalance    = 0;
+
   if (isPaper) {
-    ourUsdcBalance = currentDb.config.simulationBalance;
-    const positionsValue = currentDb.openPositions.reduce((sum, pos) => sum + (pos.shares * pos.currentPrice), 0);
-    ourTotalPortfolio = ourUsdcBalance + positionsValue;
+    ourUsdcBalance    = currentDb.config.simulationBalance || 0;
+    const posValue    = currentDb.openPositions.reduce((s, p) => s + (p.shares * p.currentPrice), 0);
+    ourTotalPortfolio = ourUsdcBalance + posValue;
   } else {
-    // Live mode: Query our real wallet on-chain USDC balance
-    const myAddress = process.env.POLYMARKET_PROXY_ADDRESS;
-    if (myAddress && myAddress.startsWith('0x')) {
-      ourUsdcBalance = await getTargetWalletUSDCBalance(myAddress);
-      try {
-        const myPositionsVal = await getTargetPortfolioValue(myAddress);
-        ourTotalPortfolio = ourUsdcBalance + myPositionsVal;
-      } catch (err) {
-        ourTotalPortfolio = ourUsdcBalance;
-      }
-    } else {
-      ourUsdcBalance = currentDb.config.realBalance || 0.0;
-      ourTotalPortfolio = ourUsdcBalance;
-    }
+    ourUsdcBalance    = currentDb.config.realBalance || 0;
+    ourTotalPortfolio = ourUsdcBalance;
   }
-  
+
   if (ourTotalPortfolio <= 0) {
-    db.addLog(`Cannot copy trade: Our total portfolio value is $0.00.`, 'error');
+    db.addLog(`Cannot copy trade: Balance is $0.00. Set your live balance via the dashboard.`, 'error');
     return;
   }
 
-  // Step 4: Perform Proportional Sizing
+  // Step 4: Size and execute
   if (side === 'BUY') {
-    // Scale trade size by target ratio * our portfolio * custom wallet multiplier
     let ourTradeSize = R * ourTotalPortfolio * wallet.multiplier;
-    
-    // Ensure we don't exceed our available cash balance
-    if (ourTradeSize > ourUsdcBalance) {
-      ourTradeSize = ourUsdcBalance;
-    }
-    
-    // Enforce Polymarket minimum trade size of $1.00 USDC
-    if (ourTradeSize < 1.0) {
-      db.addLog(`Calculated buy size ($${ourTradeSize.toFixed(2)}) is below the $1.00 USDC minimum threshold. Skipping copy trade.`, 'warning');
-      return;
-    }
+    if (ourTradeSize > ourUsdcBalance) ourTradeSize = ourUsdcBalance;
+    if (ourTradeSize < 1.0) return;
 
     const ourShares = ourTradeSize / price;
 
-    db.addLog(`[CALCULATED BUY] Scaling trade: Target spent ${R.toFixed(4) * 100}% of portfolio. Our Port: $${ourTotalPortfolio.toFixed(2)} | Target: $${targetTotalPortfolio.toFixed(2)} | We will spend: $${ourTradeSize.toFixed(2)} USDC to buy ${ourShares.toFixed(2)} shares.`, 'info');
-
     if (isPaper) {
-      // Execute paper trade
       const success = db.executeSimulatedTrade({
-        trackedWallet: wallet.address,
-        marketTitle,
+        trackedWallet: wallet.address, marketTitle,
         marketConditionId: conditionId,
-        tokenID: conditionId + "_" + outcome.toLowerCase(), // Virtual tokenId
-        outcome,
-        side: 'BUY',
-        executionPrice: price,
-        shares: ourShares,
-        ourTradeSize: ourTradeSize,
+        tokenID: conditionId + "_" + outcome.toLowerCase(),
+        outcome, side: 'BUY', executionPrice: price,
+        shares: ourShares, ourTradeSize,
         targetTradeSize: targetTradeUSDC,
         targetPortfolioValue: targetTotalPortfolio
       });
-      
       if (success) {
+        db.addLog(`[BUY] "${marketTitle}" (${outcome}) — ${ourShares.toFixed(2)} shares at $${price.toFixed(2)} | Spent: $${ourTradeSize.toFixed(2)}`, 'success');
         broadcast('trade_executed', db.readDb());
       }
     } else {
-      // Live Trading Execution (Requires Polymarket CLOB integration)
-      db.addLog(`[LIVE MODE] Initiating live copy buy for ${ourShares.toFixed(2)} shares at $${price.toFixed(2)}...`, 'info');
       try {
         const orderResp = await clob.placeLiveOrder(conditionId, outcome, 'BUY', price, ourShares);
-        db.addLog(`[LIVE SUCCESS] Order posted to book. Order ID: ${orderResp.orderID}`, 'success');
-        
-        // Record live trade locally to sync positions
+        const freshDb = db.readDb();
+        const balanceAfterBuy = Math.max((freshDb.config.realBalance || 0) - ourTradeSize, 0);
+        db.updateConfig({ realBalance: balanceAfterBuy, realBalanceManual: true });
+        db.addLog(`[BUY] "${marketTitle}" (${outcome}) — ${ourShares.toFixed(2)} shares at $${price.toFixed(2)} | Spent: $${ourTradeSize.toFixed(2)} | Balance: $${balanceAfterBuy.toFixed(2)}`, 'success');
         db.executeSimulatedTrade({
-          trackedWallet: wallet.address,
-          marketTitle,
+          trackedWallet: wallet.address, marketTitle,
           marketConditionId: conditionId,
           tokenID: conditionId + "_" + outcome.toLowerCase(),
-          outcome,
-          side: 'BUY',
-          executionPrice: price,
-          shares: ourShares,
-          ourTradeSize: ourTradeSize,
+          outcome, side: 'BUY', executionPrice: price,
+          shares: ourShares, ourTradeSize,
           targetTradeSize: targetTradeUSDC,
           targetPortfolioValue: targetTotalPortfolio
         });
         broadcast('trade_executed', db.readDb());
       } catch (err) {
-        db.addLog(`[LIVE ERROR] Live order failed: ${err.message}`, 'error');
+        db.addLog(`[BUY FAILED] "${marketTitle}" (${outcome}) — ${err.message}`, 'error');
       }
     }
 
   } else if (side === 'SELL') {
-    // Exits are sized by percentage of target's position liquidated, ensuring synchronization!
+    const tokenID     = conditionId + "_" + outcome.toLowerCase();
+    const positions   = isPaper ? currentDb.openPositions : (currentDb.livePositions || []);
+    const ourPosition = positions.find(p => p.tokenID === tokenID);
+
     const targetRemainingShares = await getTargetPositionSize(wallet.address, conditionId, outcome);
-    let sellFraction = 1.0; // Default to 100% exit if target position lookup fails or returns 0
-    
+    let sellFraction = 1.0;
     if (targetRemainingShares !== null && targetRemainingShares > 0) {
-      const targetPreviousShares = targetRemainingShares + shares;
-      sellFraction = shares / targetPreviousShares;
-      if (sellFraction > 1.0) sellFraction = 1.0;
-    } else if (targetRemainingShares === 0) {
-      // Target fully exited their position
-      sellFraction = 1.0;
-    }
-    
-    db.addLog(`Target sold ${(sellFraction * 100).toFixed(2)}% of their active position shares (${shares.toFixed(2)} of ${(targetRemainingShares + shares).toFixed(2)} shares)`, 'info');
-
-    // Retrieve our open position in this token
-    const tokenID = conditionId + "_" + outcome.toLowerCase();
-    const ourPosition = currentDb.openPositions.find(p => p.tokenID === tokenID);
-    
-    if (!ourPosition || ourPosition.shares <= 0) {
-      db.addLog(`[SKIP SELL] Target sold shares of "${marketTitle}" (${outcome}), but we do not hold a position in this asset. Skipping.`, 'info');
-      return;
+      sellFraction = Math.min(shares / (targetRemainingShares + shares), 1.0);
     }
 
-    const ourSharesToSell = ourPosition.shares * sellFraction;
+    const ourSharesToSell     = ourPosition.shares * sellFraction;
     const ourEstimatedRevenue = ourSharesToSell * price;
 
-    if (ourSharesToSell <= 0.05) {
-      db.addLog(`Calculated sell size (${ourSharesToSell.toFixed(2)} shares) is too negligible. Skipping sell copy.`, 'warning');
-      return;
-    }
-
-    db.addLog(`[CALCULATED SELL] Scaling sell: We hold ${ourPosition.shares.toFixed(2)} shares. We will sell ${ourSharesToSell.toFixed(2)} shares (${(sellFraction * 100).toFixed(2)}%) for an estimated $${ourEstimatedRevenue.toFixed(2)} USDC.`, 'info');
+    if (ourSharesToSell <= 0.05) return;
 
     if (isPaper) {
       const success = db.executeSimulatedTrade({
-        trackedWallet: wallet.address,
-        marketTitle,
-        marketConditionId: conditionId,
-        tokenID,
-        outcome,
-        side: 'SELL',
-        executionPrice: price,
-        shares: ourSharesToSell,
-        ourTradeSize: ourEstimatedRevenue, // We store the revenue as the trade size for sells
+        trackedWallet: wallet.address, marketTitle,
+        marketConditionId: conditionId, tokenID, outcome,
+        side: 'SELL', executionPrice: price,
+        shares: ourSharesToSell, ourTradeSize: ourEstimatedRevenue,
         targetTradeSize: targetTradeUSDC,
         targetPortfolioValue: targetTotalPortfolio
       });
-      
       if (success) {
+        db.addLog(`[SELL] "${marketTitle}" (${outcome}) — ${ourSharesToSell.toFixed(2)} shares at $${price.toFixed(2)} | Revenue: $${ourEstimatedRevenue.toFixed(2)}`, 'success');
         broadcast('trade_executed', db.readDb());
       }
     } else {
-      // Live Trading Execution (Requires Polymarket CLOB integration)
-      db.addLog(`[LIVE MODE] Initiating live copy sell for ${ourSharesToSell.toFixed(2)} shares at $${price.toFixed(2)}...`, 'info');
       try {
         const orderResp = await clob.placeLiveOrder(conditionId, outcome, 'SELL', price, ourSharesToSell);
-        db.addLog(`[LIVE SUCCESS] Order posted to book. Order ID: ${orderResp.orderID}`, 'success');
-        
-        // Record live sell locally to sync positions
+        const freshDb = db.readDb();
+        const balanceAfterSell = (freshDb.config.realBalance || 0) + ourEstimatedRevenue;
+        db.updateConfig({ realBalance: balanceAfterSell, realBalanceManual: true });
+        db.addLog(`[SELL] "${marketTitle}" (${outcome}) — ${ourSharesToSell.toFixed(2)} shares at $${price.toFixed(2)} | Revenue: $${ourEstimatedRevenue.toFixed(2)} | Balance: $${balanceAfterSell.toFixed(2)}`, 'success');
         db.executeSimulatedTrade({
-          trackedWallet: wallet.address,
-          marketTitle,
-          marketConditionId: conditionId,
-          tokenID,
-          outcome,
-          side: 'SELL',
-          executionPrice: price,
-          shares: ourSharesToSell,
-          ourTradeSize: ourEstimatedRevenue,
+          trackedWallet: wallet.address, marketTitle,
+          marketConditionId: conditionId, tokenID, outcome,
+          side: 'SELL', executionPrice: price,
+          shares: ourSharesToSell, ourTradeSize: ourEstimatedRevenue,
           targetTradeSize: targetTradeUSDC,
           targetPortfolioValue: targetTotalPortfolio
         });
         broadcast('trade_executed', db.readDb());
       } catch (err) {
-        db.addLog(`[LIVE ERROR] Live order failed: ${err.message}`, 'error');
+        db.addLog(`[SELL FAILED] "${marketTitle}" (${outcome}) — ${err.message}`, 'error');
       }
     }
   }
 }
 
-// Sync open position prices from Polymarket
 async function syncPrices() {
   const currentDb = db.readDb();
+  if (!currentDb.config.paperTrading) return;
   if (currentDb.openPositions.length === 0) return;
-  
+
   const conditionIds = [...new Set(currentDb.openPositions.map(p => p.marketConditionId))];
   const priceUpdates = {};
 
   await Promise.all(conditionIds.map(async (cid) => {
     try {
-      const url = `https://gamma-api.polymarket.com/markets?condition_id=${cid}`;
-      const res = await fetch(url);
+      const res = await fetch(`https://gamma-api.polymarket.com/markets?condition_id=${cid}`);
       if (!res.ok) return;
       const markets = await res.json();
       if (!markets || markets.length === 0) return;
-      
       const market = markets[0];
-      let outcomes = market.outcomes;
-      if (typeof outcomes === 'string') outcomes = JSON.parse(outcomes);
+      let outcomes      = market.outcomes;
       let outcomePrices = market.outcomePrices;
+      if (typeof outcomes === 'string')      outcomes      = JSON.parse(outcomes);
       if (typeof outcomePrices === 'string') outcomePrices = JSON.parse(outcomePrices);
-      
       outcomes.forEach((out, idx) => {
-        const tokenID = cid + "_" + out.toLowerCase();
-        priceUpdates[tokenID] = parseFloat(outcomePrices[idx]);
+        priceUpdates[cid + "_" + out.toLowerCase()] = parseFloat(outcomePrices[idx]);
       });
-    } catch (err) {
-      // ignore silently to not spam logs
-    }
+    } catch (err) { /* ignore */ }
   }));
 
   const updated = db.updatePositionPrices(priceUpdates);
-  if (updated) {
-    broadcast('state_update', db.readDb());
+  if (updated) broadcast('state_update', db.readDb());
+}
+
+async function refreshLiveBalance() {
+  const currentDb = db.readDb();
+  if (currentDb.config.paperTrading) return;
+
+  const proxyAddress = process.env.POLYMARKET_PROXY_ADDRESS?.trim();
+  if (!proxyAddress || !proxyAddress.startsWith('0x')) return;
+
+  try {
+    let changed = false;
+
+    if (currentDb.config.realBalanceManual) {
+      // Manual mode — only update positions display, never touch balance
+      try {
+        const controller = new AbortController();
+        const timeout    = setTimeout(() => controller.abort(), 4000);
+        const posRes     = await fetch(
+          `https://data-api.polymarket.com/positions?user=${proxyAddress}`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timeout);
+        if (posRes.ok) {
+          const rawPositions = await posRes.json();
+          if (Array.isArray(rawPositions)) {
+            const mappedPositions = rawPositions
+              .filter(pos => !pos.redeemable && parseFloat(pos.currentValue) > 0)
+              .map(pos => ({
+                id:                `live_${pos.conditionId}_${pos.outcome?.toLowerCase()}`,
+                marketConditionId: pos.conditionId,
+                marketTitle:       pos.title || pos.slug || "Unknown Market",
+                outcome:           pos.outcome || "Yes",
+                tokenID:           pos.conditionId + "_" + (pos.outcome || "yes").toLowerCase(),
+                shares:            parseFloat(pos.size)         || 0,
+                avgPricePaid:      parseFloat(pos.avgPrice)     || 0,
+                currentPrice:      parseFloat(pos.curPrice)     || 0,
+                value:             parseFloat(pos.currentValue) || 0,
+                unrealizedPnL:     (parseFloat(pos.currentValue) || 0) - (parseFloat(pos.initialValue) || 0),
+                trackedWallet:     pos.proxyWallet || proxyAddress
+              }));
+            const oldStr = JSON.stringify(currentDb.livePositions || []);
+            const newStr = JSON.stringify(mappedPositions);
+            if (oldStr !== newStr) {
+              currentDb.livePositions = mappedPositions;
+              db.saveDb(currentDb);
+              broadcast('state_update', db.readDb());
+            }
+          }
+        }
+      } catch (posErr) { /* silent */ }
+      return;
+    }
+
+    // Auto-fetch balance
+    let liveBalance = 0;
+    try {
+      liveBalance = await clob.getBalance();
+      if (liveBalance === 0) throw new Error("CLOB returned zero balance");
+      db.addLog(`CLOB balance: $${liveBalance.toFixed(2)} USDC`, 'info');
+    } catch (e) {
+      try {
+        liveBalance = await getTargetPortfolioValue(proxyAddress, 0);
+      } catch (e2) { /* silent */ }
+    }
+
+    if (liveBalance !== currentDb.config.realBalance) {
+      currentDb.config.realBalance = liveBalance;
+      changed = true;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeout    = setTimeout(() => controller.abort(), 4000);
+      const posRes     = await fetch(
+        `https://data-api.polymarket.com/positions?user=${proxyAddress}`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeout);
+      if (posRes.ok) {
+        const rawPositions = await posRes.json();
+        if (Array.isArray(rawPositions)) {
+          const mappedPositions = rawPositions
+            .filter(pos => !pos.redeemable && parseFloat(pos.currentValue) > 0)
+            .map(pos => ({
+              id:                `live_${pos.conditionId}_${pos.outcome?.toLowerCase()}`,
+              marketConditionId: pos.conditionId,
+              marketTitle:       pos.title || pos.slug || "Unknown Market",
+              outcome:           pos.outcome || "Yes",
+              tokenID:           pos.conditionId + "_" + (pos.outcome || "yes").toLowerCase(),
+              shares:            parseFloat(pos.size)         || 0,
+              avgPricePaid:      parseFloat(pos.avgPrice)     || 0,
+              currentPrice:      parseFloat(pos.curPrice)     || 0,
+              value:             parseFloat(pos.currentValue) || 0,
+              unrealizedPnL:     (parseFloat(pos.currentValue) || 0) - (parseFloat(pos.initialValue) || 0),
+              trackedWallet:     pos.proxyWallet || proxyAddress
+            }));
+          const oldStr = JSON.stringify(currentDb.livePositions || []);
+          const newStr = JSON.stringify(mappedPositions);
+          if (oldStr !== newStr) {
+            currentDb.livePositions = mappedPositions;
+            changed = true;
+          }
+        }
+      }
+    } catch (posErr) { /* silent */ }
+
+    if (changed) {
+      db.saveDb(currentDb);
+      broadcast('state_update', db.readDb());
+    }
+  } catch (err) {
+    db.addLog(`Failed to refresh live balance: ${err.message}`, 'error');
   }
 }
 
-// Single step execution of the polling loop
 async function runBotCycle() {
   if (isBotProcessing) return;
   isBotProcessing = true;
 
   try {
     await syncPrices();
-    
+    await refreshLiveBalance();
+
     const currentDb = db.readDb();
-    if (!currentDb.config.isRunning) {
-      isBotProcessing = false;
-      return;
-    }
+    if (!currentDb.config.isRunning) return;
 
     const wallets = currentDb.trackedWallets;
-    if (wallets.length === 0) {
-      isBotProcessing = false;
-      return;
-    }
+    if (wallets.length === 0) return;
 
-    // Process each wallet sequentially to avoid overloading RPC/APIs
     for (const wallet of wallets) {
-      // db.addLog(`Polling wallet: ${wallet.label} (${wallet.address})...`, 'debug');
-      
       try {
-        const url = `https://data-api.polymarket.com/activity?user=${wallet.address}&type=TRADE&limit=5`;
         const pollController = new AbortController();
-        const pollTimeout = setTimeout(() => pollController.abort(), 7000);
-        const res = await fetch(url, { signal: pollController.signal });
+        const pollTimeout    = setTimeout(() => pollController.abort(), 7000);
+        const res = await fetch(
+          `https://data-api.polymarket.com/activity?user=${wallet.address}&type=TRADE&limit=10`,
+          { signal: pollController.signal }
+        );
         clearTimeout(pollTimeout);
-        
-        if (!res.ok) {
-          db.addLog(`Failed to query Polymarket Data API for ${wallet.label}: HTTP ${res.status}`, 'warning');
-          continue;
-        }
-        
+
+        if (!res.ok) continue;
+
         const activities = await res.json();
-        
         if (!Array.isArray(activities) || activities.length === 0) {
-          // Update checked timestamp and save
           db.updateWalletProcessedState(wallet.address, wallet.lastProcessedTradeId);
           continue;
         }
 
-        // Sort chronologically (oldest first) so we process trades in exact order
-        // Polymarket activity returns newest first, so we reverse it
         const chronologicalActivities = [...activities].reverse();
 
-        // If this is the FIRST time we poll this wallet (lastProcessedTradeId is null)
-        // initialize it with the ID of the latest trade so we do not copy historical actions!
         if (!wallet.lastProcessedTradeId) {
-          const latestActivity = activities[0]; // Newest
-          const initialId = latestActivity.transactionHash + "_" + latestActivity.conditionId + "_" + latestActivity.side;
+          const latest    = activities[0];
+          const initialId = latest.transactionHash + "_" + latest.conditionId + "_" + latest.side;
           db.updateWalletProcessedState(wallet.address, initialId);
-          db.addLog(`Initialized copy trading tracker for ${wallet.label}. Set checkpoint to latest trade: ${initialId}. Only subsequent trades will be copied.`, 'system');
+          db.addLog(`Watching ${wallet.label} — checkpoint set.`, 'system');
           broadcast('wallet_updated', db.readDb());
           continue;
         }
 
-        let foundCheckpoint = false;
+        let foundCheckpoint    = false;
         let newTradesToProcess = [];
 
-        // Identify trades occurring after the last checkpoint
         for (const act of chronologicalActivities) {
-          const currentTradeId = act.transactionHash + "_" + act.conditionId + "_" + act.side;
-          
+          const id = act.transactionHash + "_" + act.conditionId + "_" + act.side;
           if (foundCheckpoint) {
             newTradesToProcess.push(act);
-          } else if (currentTradeId === wallet.lastProcessedTradeId) {
+          } else if (id === wallet.lastProcessedTradeId) {
             foundCheckpoint = true;
           }
         }
 
-        // If checkpoint was not found in the fetched window (e.g. they traded a lot since we last checked)
-        // fallback to processing the most recent trade, or clear the queue
         if (!foundCheckpoint && chronologicalActivities.length > 0) {
-          // For safety, let's establish a new checkpoint and process only the single newest trade
-          const latestActivity = activities[0]; // Newest
-          const newCheckpoint = latestActivity.transactionHash + "_" + latestActivity.conditionId + "_" + latestActivity.side;
+          const latest        = activities[0];
+          const newCheckpoint = latest.transactionHash + "_" + latest.conditionId + "_" + latest.side;
           db.updateWalletProcessedState(wallet.address, newCheckpoint);
-          db.addLog(`Checkpoint lost for ${wallet.label} (too many transactions since last poll). Established new checkpoint at: ${newCheckpoint}.`, 'warning');
-          broadcast('wallet_updated', db.readDb());
           continue;
         }
 
-        // Execute copy trades in sequential order
         for (const newTrade of newTradesToProcess) {
           const tradeId = newTrade.transactionHash + "_" + newTrade.conditionId + "_" + newTrade.side;
-          
           try {
-            await processCopiedTrade(wallet, newTrade);
-            // Update checkpoint *immediately* after a trade to prevent double-processing on failure
+            // Advance checkpoint FIRST so skipped trades never replay
             db.updateWalletProcessedState(wallet.address, tradeId);
+            await processCopiedTrade(wallet, newTrade);
             broadcast('wallet_updated', db.readDb());
           } catch (tradeErr) {
-            db.addLog(`Failed to copy trade ${tradeId} for ${wallet.label}: ${tradeErr.message}`, 'error');
+            db.addLog(`Trade copy failed for ${wallet.label}: ${tradeErr.message}`, 'error');
           }
         }
 
-        // If there were no new trades, still update last checked timestamp
         if (newTradesToProcess.length === 0) {
           db.updateWalletProcessedState(wallet.address, wallet.lastProcessedTradeId);
         }
@@ -462,48 +473,36 @@ async function runBotCycle() {
       }
     }
   } catch (err) {
-    db.addLog(`Copy trading cycle exception: ${err.message}`, 'error');
+    db.addLog(`Bot cycle exception: ${err.message}`, 'error');
   } finally {
     isBotProcessing = false;
   }
 }
 
-// Start the copy trading bot scheduler
 function startCopyTradingBot() {
   if (botIntervalId) return;
-  
-  const currentDb = db.readDb();
   db.updateConfig({ isRunning: true });
   db.addLog("Copy trading bot engine STARTED.", "system");
-  
   const intervalMs = parseInt(process.env.POLL_INTERVAL_MS) || 8000;
-  
-  // Run instantly on startup
   runBotCycle();
-  
-  // Schedule recurring polls
   botIntervalId = setInterval(runBotCycle, intervalMs);
   broadcast('bot_started', db.readDb());
 }
 
-// Stop the copy trading bot scheduler
-function stopCopyTradingBot() {
+async function stopCopyTradingBot() {
   if (!botIntervalId) return;
-  
   clearInterval(botIntervalId);
   botIntervalId = null;
-  
   db.updateConfig({ isRunning: false });
   db.addLog("Copy trading bot engine PAUSED.", "system");
+  await refreshLiveBalance();
   broadcast('bot_stopped', db.readDb());
 }
 
-// Check if bot is active
 function isBotActive() {
   return botIntervalId !== null;
 }
 
-// Exposed for test injection via /api/test/inject-trade
 async function _testInjectTrade(wallet, activity) {
   return processCopiedTrade(wallet, activity);
 }
@@ -513,5 +512,6 @@ module.exports = {
   stopCopyTradingBot,
   isBotActive,
   setBroadcastCallback,
+  refreshLiveBalance,
   _testInjectTrade
 };

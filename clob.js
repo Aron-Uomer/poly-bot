@@ -9,10 +9,13 @@ let Chain = null;
 let createWalletClient = null;
 let http = null;
 let privateKeyToAccount = null;
+let mnemonicToAccount = null;
+let cachedSignatureType = null;
+let patched = false;
 
 // Initialize CLOB client packages dynamically
 async function initClobClient() {
-  if (ClobClient) return true;
+  if (ClobClient && patched) return true;
   
   try {
     const clobModule = await import('@polymarket/clob-client-v2');
@@ -27,12 +30,103 @@ async function initClobClient() {
     createWalletClient = viemModule.createWalletClient;
     http = viemModule.http;
     privateKeyToAccount = viemAccountsModule.privateKeyToAccount;
+    mnemonicToAccount   = viemAccountsModule.mnemonicToAccount;
+
+    // Apply monkey-patches to ClobClient to support funderAddress correctly
+    if (!patched && ClobClient) {
+      const { createL1Headers } = clobModule;
+
+      // 1. Patch createApiKey to register keys under the proxy/funder address
+      ClobClient.prototype.createApiKey = async function(nonce) {
+        this.canL1Auth();
+        const endpoint = `${this.host}/auth/api-key`;
+        const headers = await createL1Headers(
+          this.signer, 
+          this.chainId, 
+          nonce, 
+          this.useServerTime ? await this.getServerTime() : undefined,
+          this.funderAddress
+        );
+        return await this.post(endpoint, { headers }).then((apiKeyRaw) => {
+          return {
+            key: apiKeyRaw.apiKey,
+            secret: apiKeyRaw.secret,
+            passphrase: apiKeyRaw.passphrase
+          };
+        });
+      };
+
+      // 2. Patch deriveApiKey to retrieve keys registered under the proxy/funder address
+      ClobClient.prototype.deriveApiKey = async function(nonce) {
+        this.canL1Auth();
+        const endpoint = `${this.host}/auth/derive-api-key`;
+        const headers = await createL1Headers(
+          this.signer, 
+          this.chainId, 
+          nonce, 
+          this.useServerTime ? await this.getServerTime() : undefined,
+          this.funderAddress
+        );
+        return await this.get(endpoint, { headers }).then((apiKeyRaw) => {
+          return {
+            key: apiKeyRaw.apiKey,
+            secret: apiKeyRaw.secret,
+            passphrase: apiKeyRaw.passphrase
+          };
+        });
+      };
+
+      // 3. Patch request handlers to inject funderAddress as POLY_ADDRESS in all L2 request headers
+      const originalGet = ClobClient.prototype.get;
+      ClobClient.prototype.get = async function(endpoint, options, skipThrow) {
+        if (this.funderAddress && options && options.headers) {
+          options.headers.POLY_ADDRESS = this.funderAddress;
+        }
+        return await originalGet.call(this, endpoint, options, skipThrow);
+      };
+
+      const originalPost = ClobClient.prototype.post;
+      ClobClient.prototype.post = async function(endpoint, options, skipThrow) {
+        if (this.funderAddress && options && options.headers) {
+          options.headers.POLY_ADDRESS = this.funderAddress;
+        }
+        return await originalPost.call(this, endpoint, options, skipThrow);
+      };
+
+      const originalDel = ClobClient.prototype.del;
+      ClobClient.prototype.del = async function(endpoint, options, skipThrow) {
+        if (this.funderAddress && options && options.headers) {
+          options.headers.POLY_ADDRESS = this.funderAddress;
+        }
+        return await originalDel.call(this, endpoint, options, skipThrow);
+      };
+
+      patched = true;
+      db.addLog("Successfully patched CLOB SDK ClobClient to support proxy wallets and fix L1/L2 asymmetry.", "info");
+    }
+
     return true;
   } catch (err) {
     db.addLog(`Failed to load @polymarket/clob-client-v2 or viem: ${err.message}. Live trading unavailable.`, 'error');
     return false;
   }
 }
+
+// Resolve POLYMARKET_PRIVATE_KEY to a viem account regardless of whether it is
+// a raw hex private key or a BIP-39 mnemonic phrase (with spaces or commas).
+function resolveAccount(pKey) {
+  if (!pKey || pKey.trim() === '') throw new Error("POLYMARKET_PRIVATE_KEY missing in .env.");
+  const clean = pKey.trim();
+  // Mnemonic: contains at least one space or comma-separated word
+  if (clean.includes(' ') || clean.includes(',')) {
+    const phrase = clean.replace(/,/g, ' ').replace(/\s+/g, ' ');
+    return mnemonicToAccount(phrase);
+  }
+  // Raw hex private key
+  const formattedKey = clean.startsWith('0x') ? clean : `0x${clean}`;
+  return privateKeyToAccount(formattedKey);
+}
+
 
 // Helper to resolve conditionId + outcome name to the official Polymarket CLOB tokenId
 async function getClobTokenId(conditionId, outcomeName) {
@@ -101,62 +195,14 @@ async function placeLiveOrder(conditionId, outcomeName, side, price, size) {
     throw new Error(`Could not resolve CLOB Token ID for condition ${conditionId} and outcome ${outcomeName}`);
   }
 
-  // 2. Set up viem wallet client
-  const formattedKey = pKey.startsWith('0x') ? pKey : `0x${pKey}`;
-  const account = privateKeyToAccount(formattedKey);
+  // 2. Set up viem wallet client (handles both hex keys and mnemonic phrases)
+  const account = resolveAccount(pKey);
   const walletClient = createWalletClient({
     account,
     transport: http(process.env.POLYGON_RPC_URL || "https://polygon-rpc.com")
   });
 
-  const host = "https://clob.polymarket.com";
-  
-  db.addLog(`Authenticating with Polymarket CLOB API at ${host}...`, 'info');
-  
-  // 3. Initialize authenticated CLOB client
-  let client;
-  try {
-    // Check if we have pre-defined API keys in env
-    const hasApiKeys = process.env.CLOB_API_KEY && process.env.CLOB_API_SECRET && process.env.CLOB_API_PASSPHRASE;
-    
-    if (hasApiKeys) {
-      // Use existing credentials
-      client = new ClobClient({
-        host,
-        chain: Chain.POLYGON,
-        signer: walletClient,
-        creds: {
-          key: process.env.CLOB_API_KEY,
-          secret: process.env.CLOB_API_SECRET,
-          passphrase: process.env.CLOB_API_PASSPHRASE
-        }
-      });
-    } else {
-      // Derive/Create credentials on the fly using L1 signature
-      db.addLog("API credentials not found in .env. Deriving new keys via EIP-712 wallet signature...", 'info');
-      const baseClient = new ClobClient({
-        host,
-        chain: Chain.POLYGON,
-        signer: walletClient
-      });
-      const creds = await baseClient.createOrDeriveApiKey();
-      
-      // Save credentials into active client
-      client = new ClobClient({
-        host,
-        chain: Chain.POLYGON,
-        signer: walletClient,
-        creds
-      });
-      
-      db.addLog(`Successfully derived Polymarket API credentials! Key: ${creds.key.substring(0, 8)}...`, 'success');
-      db.addLog("Tip: Copy these credentials to your .env to skip EIP-712 signing on subsequent runs!", 'info');
-      db.addLog(`CLOB_API_KEY=${creds.key}\nCLOB_API_SECRET=${creds.secret}\nCLOB_API_PASSPHRASE=${creds.passphrase}`, 'debug');
-    }
-  } catch (authErr) {
-    db.addLog(`CLOB Authentication failed: ${authErr.message}`, 'error');
-    throw authErr;
-  }
+  const client = await createAuthenticatedClobClient(walletClient);
 
   // 4. Round values to valid tick sizes (Polymarket price ticks are 0.01)
   const roundedPrice = parseFloat(price.toFixed(2));
@@ -195,7 +241,124 @@ async function placeLiveOrder(conditionId, outcomeName, side, price, size) {
   }
 }
 
+// Helper to create and authenticate CLOB client with support for proxy wallets and auto-detecting signature type
+async function createAuthenticatedClobClient(walletClient) {
+  const host = "https://clob.polymarket.com";
+  // Use the proxy wallet address — this is where your Polymarket funds live
+  const funderAddress = process.env.POLYMARKET_PROXY_ADDRESS?.trim() || null;
+
+  if (process.env.POLYMARKET_SIGNATURE_TYPE !== undefined && process.env.POLYMARKET_SIGNATURE_TYPE !== "") {
+    const sigType = parseInt(process.env.POLYMARKET_SIGNATURE_TYPE);
+    return await initClientWithParams(host, walletClient, funderAddress, sigType);
+  }
+
+  if (!funderAddress || !funderAddress.startsWith('0x')) {
+    return await initClientWithParams(host, walletClient, null, 0);
+  }
+
+  if (cachedSignatureType !== null) {
+    try {
+      return await initClientWithParams(host, walletClient, funderAddress, cachedSignatureType);
+    } catch (err) {
+      db.addLog(`Cached signature type ${cachedSignatureType} failed, re-detecting...`, 'warning');
+      cachedSignatureType = null;
+    }
+  }
+
+  const candidates = [3, 1, 2];
+  let lastError = null;
+
+  for (const sigType of candidates) {
+    try {
+      db.addLog(`Trying signature type ${sigType} with proxy ${funderAddress}...`, 'info');
+      const client = await initClientWithParams(host, walletClient, funderAddress, sigType);
+      const balanceData = await client.getBalanceAllowance({ asset_type: 'COLLATERAL' });
+      db.addLog(`Auth success with signature type ${sigType}! Balance: ${JSON.stringify(balanceData)}`, 'success');
+      cachedSignatureType = sigType;
+      return client;
+    } catch (err) {
+      db.addLog(`Signature type ${sigType} failed: ${err.message}`, 'warning');
+      lastError = err;
+    }
+  }
+
+  // Final fallback — EOA only
+  try {
+    db.addLog(`Falling back to EOA-only auth...`, 'warning');
+    const client = await initClientWithParams(host, walletClient, null, 0);
+    cachedSignatureType = 0;
+    return client;
+  } catch (err) {
+    throw new Error(`All auth methods failed. Last error: ${lastError?.message || err.message}`);
+  }
+}
+
+async function initClientWithParams(host, walletClient, funderAddress, signatureType) {
+  const config = {
+    host,
+    chain: Chain.POLYGON,
+    signer: walletClient,
+  };
+  
+  if (funderAddress) {
+    config.funderAddress = funderAddress;
+    config.signatureType = signatureType;
+  }
+
+  const hasApiKeys = process.env.CLOB_API_KEY && process.env.CLOB_API_SECRET && process.env.CLOB_API_PASSPHRASE;
+  
+  if (hasApiKeys) {
+    config.creds = {
+      key: process.env.CLOB_API_KEY,
+      secret: process.env.CLOB_API_SECRET,
+      passphrase: process.env.CLOB_API_PASSPHRASE
+    };
+    return new ClobClient(config);
+  } else {
+    // Derive API keys using a plain EOA client (no funderAddress) to avoid EIP-1271 signing issues.
+    // The Polymarket SDK cannot derive proxy-registered API keys automatically — but EOA-derived
+    // keys still work: our monkey-patch forces POLY_ADDRESS=proxyAddress in every request header,
+    // so the server looks up the proxy's balance even though auth was established via EOA keys.
+    const eoaClient = new ClobClient({
+      host,
+      chain: Chain.POLYGON,
+      signer: walletClient
+      // No funderAddress — EOA signs for itself
+    });
+    const creds = await eoaClient.createOrDeriveApiKey();
+    if (!creds || !creds.secret) {
+      throw new Error('Failed to derive API key credentials from EOA. Secret is empty.');
+    }
+    db.addLog(`Derived EOA API creds successfully. Key: ${creds.key?.substring(0, 8)}...`, 'info');
+    // Build the actual client with proxy config + EOA-derived creds
+    return new ClobClient({ ...config, creds });
+  }
+}
+
+// Fetch authenticated USDC balance from the Polymarket CLOB API
+async function getBalance() {
+  const initialized = await initClobClient();
+  if (!initialized) throw new Error("CLOB SDK not initialized.");
+
+  const pKey = process.env.POLYMARKET_PRIVATE_KEY;
+  const account = resolveAccount(pKey);
+  const walletClient = createWalletClient({
+    account,
+    transport: http(process.env.POLYGON_RPC_URL || "https://polygon-rpc.com")
+  });
+
+  const funderAddress = process.env.POLYMARKET_PROXY_ADDRESS?.trim();
+  db.addLog(`getBalance: signer EOA=${account.address}, proxy=${funderAddress || 'none'}`, 'info');
+
+  const client = await createAuthenticatedClobClient(walletClient);
+  const balanceData = await client.getBalanceAllowance({ asset_type: 'COLLATERAL' });
+  db.addLog(`Raw CLOB balanceData: ${JSON.stringify(balanceData)}`, 'info');
+  return parseFloat(balanceData.balance) || 0;
+}
+
+
 module.exports = {
   placeLiveOrder,
-  getClobTokenId
+  getClobTokenId,
+  getBalance
 };

@@ -15,10 +15,7 @@
 </head>
 <body>
 
-  <!-- Background Glowing Orbs -->
-  <div class="glow-orb orb-1"></div>
-  <div class="glow-orb orb-2"></div>
-  <div class="glow-orb orb-3"></div>
+
 
   <div class="app-container">
     
@@ -35,6 +32,12 @@
       </div>
       
       <div class="nav-controls">
+        <!-- Connected Wallet Badge -->
+        <div id="profile-badge" class="connection-status" style="display: none; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); color: #38bdf8;">
+          <i class="fa-solid fa-user" style="margin-right: 6px;"></i>
+          <span id="profile-label" class="status-label">@username</span>
+        </div>
+        
         <!-- Connection Badge -->
         <div id="connection-badge" class="connection-status offline">
           <span class="status-indicator"></span>
@@ -87,11 +90,21 @@
             </div>
           </div>
           
-          <!-- CARD 4: TOTAL PNL -->
+          <!-- CARD 4: REALIZED PNL (Closed Trades) -->
+          <div id="realized-pnl-card" class="metric-card card-pnl">
+            <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="card-details">
+              <h3>Realized PnL</h3>
+              <div id="realized-pnl-val" class="metric-value">$0.00</div>
+              <span class="metric-subtext">From Closed Positions</span>
+            </div>
+          </div>
+
+          <!-- CARD 5: UNREALIZED PNL (Open Positions) -->
           <div id="pnl-card" class="metric-card card-pnl">
             <div class="card-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
             <div class="card-details">
-              <h3>Total Profits (PnL)</h3>
+              <h3>Unrealized PnL</h3>
               <div id="pnl-val" class="metric-value">$0.00</div>
               <span id="pnl-pct" class="metric-subtext">0.00% Overall</span>
             </div>
@@ -124,6 +137,23 @@
                   <h4>Live Trading Active</h4>
                   <p>Orders will be routed directly to the Polymarket CLOB. Ensure MATIC is funded in your Polygon EOA for gas fees.</p>
                 </div>
+              </div>
+
+             <!-- Manual Live Balance Input (only shown in live mode) -->
+              <div id="live-balance-form-group" class="form-group border-top pt-3 hidden">
+                <label for="live-balance-input" style="font-size: 0.75rem; color: var(--text-muted, #94a3b8); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Set Live Balance (USDC)
+                </label>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
+                  <input type="number" id="live-balance-input" placeholder="e.g. 85.00" step="0.01" min="0"
+                    style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.4rem; padding: 0.5rem 0.75rem; color: white; font-family: inherit; font-size: 0.875rem;">
+                  <button type="button" id="set-live-balance-btn" class="btn btn-primary" style="white-space: nowrap; padding: 0.5rem 1rem;">
+                    <i class="fa-solid fa-check"></i> Set
+                  </button>
+                </div>
+                <span style="font-size: 0.7rem; color: #64748b; margin-top: 0.25rem; display: block;">
+                  Update this manually to match your Polymarket cash balance.
+                </span>
               </div>
 
               <!-- Reset Simulation -->
@@ -230,12 +260,13 @@
                   <th class="text-right">Our Size</th>
                   <th class="text-right">Price</th>
                   <th class="text-right">Shares</th>
+                  <th class="text-right">Realized PnL</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody id="trades-table-body">
                 <tr>
-                  <td colspan="10" class="text-center empty-table">Ledger is empty. No copy trades executed yet.</td>
+                  <td colspan="11" class="text-center empty-table">Ledger is empty. No copy trades executed yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -245,27 +276,6 @@
       </section>
 
     </main>
-
-    <!-- FLOATING SYSTEM CONSOLE PANEL -->
-    <footer class="console-panel">
-      <div class="console-header">
-        <div class="console-title">
-          <i class="fa-solid fa-terminal console-icon"></i>
-          <h2>SYSTEM CONSOLE & LIVE SIGNAL STREAM</h2>
-        </div>
-        <div class="console-controls">
-          <button id="clear-console-btn" class="btn btn-sm btn-dark"><i class="fa-solid fa-trash-can"></i> Clear</button>
-          <label class="console-checkbox">
-            <input type="checkbox" id="autoscroll-toggle" checked>
-            <span>Auto-Scroll</span>
-          </label>
-        </div>
-      </div>
-      <div id="console-logs" class="console-logs">
-        <!-- Live logs populate here -->
-        <div class="log-line system">[SYSTEM] Connecting to server WebSocket stream...</div>
-      </div>
-    </footer>
 
   </div>
 

@@ -15,27 +15,10 @@ function initDb() {
         realBalance: 0.0,
         totalRealizedPnL: 0.0
       },
-      trackedWallets: [
-        {
-          address: "0xd3c9f52fde3ad0d7f573efb1c09b8b3dbef72990",
-          label: "Whale Alpha (Elections)",
-          multiplier: 1.0,
-          addedAt: new Date().toISOString(),
-          lastChecked: null,
-          lastProcessedTradeId: null
-        },
-        {
-          address: "0x534e3a479ff73a9e334df9c252ef7806509618a8",
-          label: "Whale Beta (Macro/Crypto)",
-          multiplier: 1.0,
-          addedAt: new Date().toISOString(),
-          lastChecked: null,
-          lastProcessedTradeId: null
-        }
-      ],
+      trackedWallets: [],
       openPositions: [],
-      tradeHistory: [],
-      logs: []
+      livePositions: [],
+      tradeHistory: []
     };
     fs.writeFileSync(DB_PATH, JSON.stringify(defaultTemplate, null, 2), 'utf-8');
   }
@@ -50,7 +33,7 @@ function readDb() {
   } catch (err) {
     console.error("Error reading database:", err);
     // If corruption occurs, return a blank template
-    return { config: {}, trackedWallets: [], openPositions: [], tradeHistory: [], logs: [] };
+    return { config: {}, trackedWallets: [], openPositions: [], tradeHistory: [] };
   }
 }
 
@@ -67,20 +50,9 @@ function saveDb(data) {
 
 // Log message helper
 function addLog(message, type = 'info') {
-  const db = readDb();
-  const timestamp = new Date().toISOString();
-  const logEntry = { timestamp, message, type };
-  
-  db.logs.push(logEntry);
-  
-  // Keep only the last 150 log entries
-  if (db.logs.length > 150) {
-    db.logs.shift();
-  }
-  
-  saveDb(db);
   console.log(`[${type.toUpperCase()}] ${message}`);
-  return logEntry;
+  const timestamp = new Date().toISOString();
+  return { timestamp, message, type };
 }
 
 // Update database config
@@ -95,18 +67,18 @@ function updateConfig(newConfig) {
 function addTrackedWallet(address, label, multiplier = 1.0) {
   const db = readDb();
   const normalizedAddress = address.trim().toLowerCase();
-  
+
   if (!normalizedAddress.startsWith('0x') || normalizedAddress.length !== 42) {
     addLog(`Failed to add wallet: Invalid address format "${address}"`, 'error');
     throw new Error("Invalid wallet address. Must be a 42-character Hex string starting with 0x.");
   }
-  
+
   const existing = db.trackedWallets.find(w => w.address === normalizedAddress);
   if (existing) {
     addLog(`Wallet already tracked: ${normalizedAddress}`, 'warning');
     return existing;
   }
-  
+
   const newWallet = {
     address: normalizedAddress,
     label: label || `Tracked Wallet ${normalizedAddress.substring(0, 6)}`,
@@ -115,7 +87,7 @@ function addTrackedWallet(address, label, multiplier = 1.0) {
     lastChecked: null,
     lastProcessedTradeId: null
   };
-  
+
   db.trackedWallets.push(newWallet);
   saveDb(db);
   addLog(`Successfully added wallet: ${newWallet.label} (${newWallet.address})`, 'system');
@@ -126,15 +98,15 @@ function addTrackedWallet(address, label, multiplier = 1.0) {
 function removeTrackedWallet(address) {
   const db = readDb();
   const normalizedAddress = address.trim().toLowerCase();
-  
+
   const initialLength = db.trackedWallets.length;
   db.trackedWallets = db.trackedWallets.filter(w => w.address !== normalizedAddress);
-  
+
   if (db.trackedWallets.length === initialLength) {
     addLog(`Wallet not found for deletion: ${normalizedAddress}`, 'warning');
     return false;
   }
-  
+
   saveDb(db);
   addLog(`Successfully removed wallet: ${normalizedAddress}`, 'system');
   return true;
@@ -145,7 +117,7 @@ function updateWalletProcessedState(address, lastProcessedTradeId) {
   const db = readDb();
   const normalizedAddress = address.trim().toLowerCase();
   const wallet = db.trackedWallets.find(w => w.address === normalizedAddress);
-  
+
   if (wallet) {
     wallet.lastProcessedTradeId = lastProcessedTradeId;
     wallet.lastChecked = new Date().toISOString();
@@ -153,15 +125,10 @@ function updateWalletProcessedState(address, lastProcessedTradeId) {
   }
 }
 
-// Execute a paper/simulation trade and update balances and positions
+// Execute a paper/simulation or live trade log and update balances and positions
 function executeSimulatedTrade(trade) {
   const db = readDb();
   const isPaper = db.config.paperTrading;
-  
-  if (!isPaper) {
-    addLog("Real trading not implemented, skipping simulated execution logic.", "warning");
-    return false;
-  }
   
   const { 
     trackedWallet, 
@@ -179,93 +146,93 @@ function executeSimulatedTrade(trade) {
   const shareCount = parseFloat(shares);
   const price = parseFloat(executionPrice);
   
-  // Declare PnL tracking variables before the BUY/SELL branches
-  // so they are guaranteed to be populated when the tradeRecord is built.
   let tradeRealizedPnL = null;
   let tradeRevenue = null;
   
-  if (side === 'BUY') {
-    // Check if we have enough simulated balance
-    if (db.config.simulationBalance < cost) {
-      addLog(`[SIM] Insufficient virtual balance to execute buy of ${shareCount} shares (${cost.toFixed(2)} USDC requested, ${db.config.simulationBalance.toFixed(2)} USDC available)`, 'error');
-      return false;
+  if (isPaper) {
+    if (side === 'BUY') {
+      // Check if we have enough simulated balance
+      if (db.config.simulationBalance < cost) {
+        addLog(`[SIM] Insufficient virtual balance to execute buy of ${shareCount} shares (${cost.toFixed(2)} USDC requested, ${db.config.simulationBalance.toFixed(2)} USDC available)`, 'error');
+        return false;
+      }
+      
+      // Deduct from simulated balance
+      db.config.simulationBalance -= cost;
+      
+      // Check if we already have a position in this specific token ID
+      let position = db.openPositions.find(p => p.tokenID === tokenID);
+      if (!position) {
+        position = {
+          id: `pos_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          marketConditionId,
+          marketTitle,
+          outcome,
+          tokenID,
+          shares: 0,
+          avgPricePaid: 0,
+          currentPrice: price,
+          value: 0,
+          unrealizedPnL: 0,
+          trackedWallet
+        };
+        db.openPositions.push(position);
+      }
+      
+      // Calculate new average price and update share count
+      const totalShares = position.shares + shareCount;
+      const totalCostBasis = (position.shares * position.avgPricePaid) + cost;
+      position.avgPricePaid = totalCostBasis / totalShares;
+      position.shares = totalShares;
+      position.currentPrice = price;
+      position.value = totalShares * price;
+      position.unrealizedPnL = position.value - totalCostBasis;
+      
+      addLog(`[SIM SUCCESS] Bought ${shareCount.toFixed(2)} shares of "${marketTitle}" (${outcome}) at $${price.toFixed(2)} each. Cost: $${cost.toFixed(2)} USDC.`, 'success');
+    } else if (side === 'SELL') {
+      // Check if we hold a position in this token
+      let position = db.openPositions.find(p => p.tokenID === tokenID);
+      if (!position || position.shares <= 0) {
+        addLog(`[SIM] Attempted to copy SELL trade of "${marketTitle}" (${outcome}), but we do not hold an open position!`, 'warning');
+        return false;
+      }
+      
+      // How many shares are we selling?
+      const sellShares = Math.min(position.shares, shareCount);
+      const revenue = sellShares * price;
+      const costBasisReleased = sellShares * position.avgPricePaid;
+      const realizedPnL = revenue - costBasisReleased;
+      
+      tradeRealizedPnL = realizedPnL;
+      tradeRevenue = revenue;
+      
+      // Accumulate into the persistent running total
+      if (typeof db.config.totalRealizedPnL !== 'number') db.config.totalRealizedPnL = 0;
+      db.config.totalRealizedPnL += realizedPnL;
+      
+      // Add revenue back to simulated balance
+      db.config.simulationBalance += revenue;
+      
+      // Update position
+      position.shares -= sellShares;
+      position.value = position.shares * price;
+      position.unrealizedPnL = position.shares * (price - position.avgPricePaid);
+      
+      const pnlSign = realizedPnL >= 0 ? '+' : '';
+      addLog(`[SIM SUCCESS] Sold ${sellShares.toFixed(2)} shares of "${marketTitle}" (${outcome}) at $${price.toFixed(2)} each. Received: $${revenue.toFixed(2)} USDC. Realized PnL: ${pnlSign}$${realizedPnL.toFixed(2)} USDC.`, 'success');
+      
+      // Clean up empty position
+      if (position.shares <= 0.01) {
+        db.openPositions = db.openPositions.filter(p => p.tokenID !== tokenID);
+        addLog(`[SIM] Position in "${marketTitle}" (${outcome}) fully closed.`, 'info');
+      }
     }
-    
-    // Deduct from simulated balance
-    db.config.simulationBalance -= cost;
-    
-    // Check if we already have a position in this specific token ID
-    let position = db.openPositions.find(p => p.tokenID === tokenID);
-    if (!position) {
-      position = {
-        id: `pos_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        marketConditionId,
-        marketTitle,
-        outcome,
-        tokenID,
-        shares: 0,
-        avgPricePaid: 0,
-        currentPrice: price,
-        value: 0,
-        unrealizedPnL: 0,
-        trackedWallet
-      };
-      db.openPositions.push(position);
-    }
-    
-    // Calculate new average price and update share count
-    const totalShares = position.shares + shareCount;
-    const totalCostBasis = (position.shares * position.avgPricePaid) + cost;
-    position.avgPricePaid = totalCostBasis / totalShares;
-    position.shares = totalShares;
-    position.currentPrice = price;
-    position.value = totalShares * price;
-    position.unrealizedPnL = position.value - totalCostBasis;
-    
-    addLog(`[SIM SUCCESS] Bought ${shareCount.toFixed(2)} shares of "${marketTitle}" (${outcome}) at $${price.toFixed(2)} each. Cost: $${cost.toFixed(2)} USDC.`, 'success');
-  } else if (side === 'SELL') {
-    // Check if we hold a position in this token
-    let position = db.openPositions.find(p => p.tokenID === tokenID);
-    if (!position || position.shares <= 0) {
-      addLog(`[SIM] Attempted to copy SELL trade of "${marketTitle}" (${outcome}), but we do not hold an open position!`, 'warning');
-      return false;
-    }
-    
-    // How many shares are we selling?
-    // In our copy engine, shares sold is a percentage of our existing shares
-    const sellShares = Math.min(position.shares, shareCount);
-    const revenue = sellShares * price;
-    const costBasisReleased = sellShares * position.avgPricePaid;
-    const realizedPnL = revenue - costBasisReleased;
-    
-    // Capture PnL values for the trade history record
-    tradeRealizedPnL = realizedPnL;
-    tradeRevenue = revenue;
-    
-    // Accumulate into the persistent running total
-    if (typeof db.config.totalRealizedPnL !== 'number') db.config.totalRealizedPnL = 0;
-    db.config.totalRealizedPnL += realizedPnL;
-    
-    // Add revenue back to simulated balance
-    db.config.simulationBalance += revenue;
-    
-    // Update position
-    position.shares -= sellShares;
-    position.value = position.shares * price;
-    position.unrealizedPnL = position.shares * (price - position.avgPricePaid);
-    
-    const pnlSign = realizedPnL >= 0 ? '+' : '';
-    addLog(`[SIM SUCCESS] Sold ${sellShares.toFixed(2)} shares of "${marketTitle}" (${outcome}) at $${price.toFixed(2)} each. Received: $${revenue.toFixed(2)} USDC. Realized PnL: ${pnlSign}$${realizedPnL.toFixed(2)} USDC.`, 'success');
-    
-    // Clean up empty position
-    if (position.shares <= 0.01) {
-      db.openPositions = db.openPositions.filter(p => p.tokenID !== tokenID);
-      addLog(`[SIM] Position in "${marketTitle}" (${outcome}) fully closed.`, 'info');
-    }
+  } else {
+    // Live mode logging only
+    addLog(`[LIVE SUCCESS] Recorded trade execution for ledger: ${side} ${shareCount.toFixed(2)} shares of "${marketTitle}" (${outcome}) at $${price.toFixed(2)} each. Size: $${cost.toFixed(2)} USDC.`, 'success');
   }
   
-  // Record trade in history — built AFTER the BUY/SELL blocks so all
-  // computed values (tradeRealizedPnL, tradeRevenue) are already populated.
+  // Record trade in history
   const tradeRecord = {
     id: `trd_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     timestamp: new Date().toISOString(),
@@ -279,9 +246,8 @@ function executeSimulatedTrade(trade) {
     ourTradeSize: cost,
     executionPrice: price,
     shares: shareCount,
-    mode: "PAPER",
+    mode: isPaper ? "PAPER" : "LIVE",
     status: "SUCCESS",
-    // Realized P&L is only available on SELL trades
     realizedPnL: tradeRealizedPnL,
     revenue: tradeRevenue
   };
@@ -306,7 +272,7 @@ function resetSimulation() {
   db.config.totalRealizedPnL = 0.0;
   db.openPositions = [];
   db.tradeHistory = [];
-  
+
   saveDb(db);
   addLog("Simulation state reset successfully. Balance restored, all positions and history wiped.", "system");
 }
@@ -314,7 +280,7 @@ function resetSimulation() {
 function updatePositionPrices(priceUpdates) {
   const db = readDb();
   let updated = false;
-  
+
   for (const pos of db.openPositions) {
     if (priceUpdates[pos.tokenID] !== undefined) {
       const newPrice = priceUpdates[pos.tokenID];
@@ -326,7 +292,7 @@ function updatePositionPrices(priceUpdates) {
       }
     }
   }
-  
+
   if (updated) {
     saveDb(db);
   }

@@ -5,21 +5,15 @@ require('dotenv').config();
 
 const USDCE_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 const USDC_ADDRESS  = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359";
-const ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)"
-];
+const ERC20_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
-let botIntervalId    = null;
-let isBotProcessing  = false;
+let botIntervalId       = null;
+let isBotProcessing     = false;
 let wsBroadcastCallback = null;
+let livePositionsCache  = []; // in-memory only — not persisted
 
-function setBroadcastCallback(callback) {
-  wsBroadcastCallback = callback;
-}
-
-function broadcast(type, data) {
-  if (wsBroadcastCallback) wsBroadcastCallback({ type, data });
-}
+function setBroadcastCallback(callback) { wsBroadcastCallback = callback; }
+function broadcast(type, data) { if (wsBroadcastCallback) wsBroadcastCallback({ type, data }); }
 
 const FALLBACK_RPCS = [
   "https://polygon-bor-rpc.publicnode.com",
@@ -33,7 +27,7 @@ const FALLBACK_RPCS = [
 async function getOnChainUSDCBalance(address) {
   for (const rpcUrl of FALLBACK_RPCS) {
     try {
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const provider      = new ethers.JsonRpcProvider(rpcUrl);
       provider._getConnection().timeout = 5000;
       const usdcContract  = new ethers.Contract(USDC_ADDRESS,  ERC20_ABI, provider);
       const usdceContract = new ethers.Contract(USDCE_ADDRESS, ERC20_ABI, provider);
@@ -41,42 +35,32 @@ async function getOnChainUSDCBalance(address) {
         usdcContract.balanceOf(address),
         usdceContract.balanceOf(address),
       ]);
-      const total = parseFloat(ethers.formatUnits(usdcBal, 6))
-                  + parseFloat(ethers.formatUnits(usdceBal, 6));
-      return total;
-    } catch (err) {
-      // Try next RPC silently
-    }
+      return parseFloat(ethers.formatUnits(usdcBal, 6))
+           + parseFloat(ethers.formatUnits(usdceBal, 6));
+    } catch (err) { /* try next */ }
   }
   return 0;
 }
 
 async function getTargetPortfolioValue(address, fallback = 0) {
   try {
-    const url = `https://data-api.polymarket.com/value?user=${address}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(url, { signal: controller.signal });
+    const timeout    = setTimeout(() => controller.abort(), 5000);
+    const res        = await fetch(`https://data-api.polymarket.com/value?user=${address}`, { signal: controller.signal });
     clearTimeout(timeout);
-    if (!res.ok) throw new Error(`Data API returned status ${res.status}`);
+    if (!res.ok) throw new Error(`status ${res.status}`);
     const data = await res.json();
     let rawVal = 0;
-    if (Array.isArray(data) && data.length > 0) {
-      rawVal = data[0].value !== undefined ? data[0].value : data[0].totalValue;
-    } else if (data) {
-      rawVal = data.value !== undefined ? data.value : data.totalValue;
-    }
+    if (Array.isArray(data) && data.length > 0) rawVal = data[0].value ?? data[0].totalValue ?? 0;
+    else if (data) rawVal = data.value ?? data.totalValue ?? 0;
     return parseFloat(rawVal) || 0;
-  } catch (err) {
-    return fallback;
-  }
+  } catch { return fallback; }
 }
 
 async function getTargetPositionSize(address, conditionId, outcome) {
   try {
-    const url = `https://data-api.polymarket.com/positions?user=${address}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Data API positions returned status ${res.status}`);
+    const res = await fetch(`https://data-api.polymarket.com/positions?user=${address}`);
+    if (!res.ok) throw new Error(`status ${res.status}`);
     const positions = await res.json();
     const match = positions.find(pos =>
       pos.conditionId?.toLowerCase() === conditionId?.toLowerCase() &&
@@ -84,30 +68,19 @@ async function getTargetPositionSize(address, conditionId, outcome) {
        pos.token?.outcome?.toLowerCase() === outcome?.toLowerCase())
     );
     if (match) {
-      const sizeVal = match.size !== undefined
-        ? match.size
-        : (match.position?.size !== undefined ? match.position.size : match.amount);
+      const sizeVal = match.size ?? match.position?.size ?? match.amount;
       return parseFloat(sizeVal) || 0;
     }
     return 0;
-  } catch (err) {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function processCopiedTrade(wallet, activity) {
-  const currentDb = db.readDb();
-  const isPaper = currentDb.config.paperTrading;
+  const currentDb = await db.readDb();
+  const isPaper   = currentDb.config.paperTrading === true || currentDb.config.paperTrading === 'true';
 
-  const {
-    conditionId,
-    side,
-    size: targetShares,
-    usdcSize: targetUsdcSize,
-    price: executionPrice,
-    outcome,
-    title: marketTitle,
-  } = activity;
+  const { conditionId, side, size: targetShares, usdcSize: targetUsdcSize,
+          price: executionPrice, outcome, title: marketTitle } = activity;
 
   const targetTradeUSDC = parseFloat(targetUsdcSize) || 0;
   const price           = parseFloat(executionPrice)  || 0;
@@ -115,35 +88,32 @@ async function processCopiedTrade(wallet, activity) {
 
   if (targetTradeUSDC <= 0 || price <= 0 || shares <= 0) return;
 
-  // For SELL — silently skip if we don't hold the position
+  // Silently skip SELL if we don't hold the position
   if (side === 'SELL') {
     const tokenID   = conditionId + "_" + outcome.toLowerCase();
-    const positions = isPaper ? currentDb.openPositions : (currentDb.livePositions || []);
-    const ourPosition = positions.find(p => p.tokenID === tokenID);
-    if (!ourPosition || ourPosition.shares <= 0) return;
+    const positions = isPaper ? currentDb.openPositions : livePositionsCache;
+    const ourPos    = positions.find(p => p.tokenID === tokenID);
+    if (!ourPos || ourPos.shares <= 0) return;
   }
 
-  // Step 1: Target portfolio value
+  // Target portfolio value
   const targetPositionsVal = await getTargetPortfolioValue(wallet.address, targetTradeUSDC * 10);
   const targetUsdcVal      = await getOnChainUSDCBalance(wallet.address);
   let targetTotalPortfolio = targetPositionsVal + targetUsdcVal;
-  if (targetTotalPortfolio < targetTradeUSDC) {
-    targetTotalPortfolio = targetTradeUSDC * 1.05;
-  }
+  if (targetTotalPortfolio < targetTradeUSDC) targetTotalPortfolio = targetTradeUSDC * 1.05;
 
-  // Step 2: Proportional ratio
   const R = targetTradeUSDC / targetTotalPortfolio;
 
-  // Step 3: Our portfolio value
-  let ourTotalPortfolio = 0;
+  // Our portfolio value
   let ourUsdcBalance    = 0;
+  let ourTotalPortfolio = 0;
 
   if (isPaper) {
-    ourUsdcBalance    = currentDb.config.simulationBalance || 0;
-    const posValue    = currentDb.openPositions.reduce((s, p) => s + (p.shares * p.currentPrice), 0);
+    ourUsdcBalance    = parseFloat(currentDb.config.simulationBalance) || 0;
+    const posValue    = currentDb.openPositions.reduce((s, p) => s + p.shares * p.currentPrice, 0);
     ourTotalPortfolio = ourUsdcBalance + posValue;
   } else {
-    ourUsdcBalance    = currentDb.config.realBalance || 0;
+    ourUsdcBalance    = parseFloat(currentDb.config.realBalance) || 0;
     ourTotalPortfolio = ourUsdcBalance;
   }
 
@@ -152,7 +122,6 @@ async function processCopiedTrade(wallet, activity) {
     return;
   }
 
-  // Step 4: Size and execute
   if (side === 'BUY') {
     let ourTradeSize = R * ourTotalPortfolio * wallet.multiplier;
     if (ourTradeSize > ourUsdcBalance) ourTradeSize = ourUsdcBalance;
@@ -161,45 +130,39 @@ async function processCopiedTrade(wallet, activity) {
     const ourShares = ourTradeSize / price;
 
     if (isPaper) {
-      const success = db.executeSimulatedTrade({
-        trackedWallet: wallet.address, marketTitle,
-        marketConditionId: conditionId,
+      const success = await db.executeSimulatedTrade({
+        trackedWallet: wallet.address, marketTitle, marketConditionId: conditionId,
         tokenID: conditionId + "_" + outcome.toLowerCase(),
-        outcome, side: 'BUY', executionPrice: price,
-        shares: ourShares, ourTradeSize,
-        targetTradeSize: targetTradeUSDC,
-        targetPortfolioValue: targetTotalPortfolio
+        outcome, side: 'BUY', executionPrice: price, shares: ourShares, ourTradeSize,
+        targetTradeSize: targetTradeUSDC, targetPortfolioValue: targetTotalPortfolio
       });
       if (success) {
         db.addLog(`[BUY] "${marketTitle}" (${outcome}) — ${ourShares.toFixed(2)} shares at $${price.toFixed(2)} | Spent: $${ourTradeSize.toFixed(2)}`, 'success');
-        broadcast('trade_executed', db.readDb());
+        broadcast('trade_executed', await db.readDb());
       }
     } else {
       try {
-        const orderResp = await clob.placeLiveOrder(conditionId, outcome, 'BUY', price, ourShares);
-        const freshDb = db.readDb();
-        const balanceAfterBuy = Math.max((freshDb.config.realBalance || 0) - ourTradeSize, 0);
-        db.updateConfig({ realBalance: balanceAfterBuy, realBalanceManual: true });
+        await clob.placeLiveOrder(conditionId, outcome, 'BUY', price, ourShares);
+        const freshDb        = await db.readDb();
+        const balanceAfterBuy = Math.max((parseFloat(freshDb.config.realBalance) || 0) - ourTradeSize, 0);
+        await db.updateConfig({ realBalance: balanceAfterBuy, realBalanceManual: true });
         db.addLog(`[BUY] "${marketTitle}" (${outcome}) — ${ourShares.toFixed(2)} shares at $${price.toFixed(2)} | Spent: $${ourTradeSize.toFixed(2)} | Balance: $${balanceAfterBuy.toFixed(2)}`, 'success');
-        db.executeSimulatedTrade({
-          trackedWallet: wallet.address, marketTitle,
-          marketConditionId: conditionId,
+        await db.executeSimulatedTrade({
+          trackedWallet: wallet.address, marketTitle, marketConditionId: conditionId,
           tokenID: conditionId + "_" + outcome.toLowerCase(),
-          outcome, side: 'BUY', executionPrice: price,
-          shares: ourShares, ourTradeSize,
-          targetTradeSize: targetTradeUSDC,
-          targetPortfolioValue: targetTotalPortfolio
+          outcome, side: 'BUY', executionPrice: price, shares: ourShares, ourTradeSize,
+          targetTradeSize: targetTradeUSDC, targetPortfolioValue: targetTotalPortfolio
         });
-        broadcast('trade_executed', db.readDb());
+        broadcast('trade_executed', await db.readDb());
       } catch (err) {
         db.addLog(`[BUY FAILED] "${marketTitle}" (${outcome}) — ${err.message}`, 'error');
       }
     }
 
   } else if (side === 'SELL') {
-    const tokenID     = conditionId + "_" + outcome.toLowerCase();
-    const positions   = isPaper ? currentDb.openPositions : (currentDb.livePositions || []);
-    const ourPosition = positions.find(p => p.tokenID === tokenID);
+    const tokenID   = conditionId + "_" + outcome.toLowerCase();
+    const positions = isPaper ? currentDb.openPositions : livePositionsCache;
+    const ourPos    = positions.find(p => p.tokenID === tokenID);
 
     const targetRemainingShares = await getTargetPositionSize(wallet.address, conditionId, outcome);
     let sellFraction = 1.0;
@@ -207,40 +170,35 @@ async function processCopiedTrade(wallet, activity) {
       sellFraction = Math.min(shares / (targetRemainingShares + shares), 1.0);
     }
 
-    const ourSharesToSell     = ourPosition.shares * sellFraction;
+    const ourSharesToSell     = ourPos.shares * sellFraction;
     const ourEstimatedRevenue = ourSharesToSell * price;
-
     if (ourSharesToSell <= 0.05) return;
 
     if (isPaper) {
-      const success = db.executeSimulatedTrade({
-        trackedWallet: wallet.address, marketTitle,
-        marketConditionId: conditionId, tokenID, outcome,
-        side: 'SELL', executionPrice: price,
+      const success = await db.executeSimulatedTrade({
+        trackedWallet: wallet.address, marketTitle, marketConditionId: conditionId,
+        tokenID, outcome, side: 'SELL', executionPrice: price,
         shares: ourSharesToSell, ourTradeSize: ourEstimatedRevenue,
-        targetTradeSize: targetTradeUSDC,
-        targetPortfolioValue: targetTotalPortfolio
+        targetTradeSize: targetTradeUSDC, targetPortfolioValue: targetTotalPortfolio
       });
       if (success) {
         db.addLog(`[SELL] "${marketTitle}" (${outcome}) — ${ourSharesToSell.toFixed(2)} shares at $${price.toFixed(2)} | Revenue: $${ourEstimatedRevenue.toFixed(2)}`, 'success');
-        broadcast('trade_executed', db.readDb());
+        broadcast('trade_executed', await db.readDb());
       }
     } else {
       try {
-        const orderResp = await clob.placeLiveOrder(conditionId, outcome, 'SELL', price, ourSharesToSell);
-        const freshDb = db.readDb();
-        const balanceAfterSell = (freshDb.config.realBalance || 0) + ourEstimatedRevenue;
-        db.updateConfig({ realBalance: balanceAfterSell, realBalanceManual: true });
+        await clob.placeLiveOrder(conditionId, outcome, 'SELL', price, ourSharesToSell);
+        const freshDb          = await db.readDb();
+        const balanceAfterSell = (parseFloat(freshDb.config.realBalance) || 0) + ourEstimatedRevenue;
+        await db.updateConfig({ realBalance: balanceAfterSell, realBalanceManual: true });
         db.addLog(`[SELL] "${marketTitle}" (${outcome}) — ${ourSharesToSell.toFixed(2)} shares at $${price.toFixed(2)} | Revenue: $${ourEstimatedRevenue.toFixed(2)} | Balance: $${balanceAfterSell.toFixed(2)}`, 'success');
-        db.executeSimulatedTrade({
-          trackedWallet: wallet.address, marketTitle,
-          marketConditionId: conditionId, tokenID, outcome,
-          side: 'SELL', executionPrice: price,
+        await db.executeSimulatedTrade({
+          trackedWallet: wallet.address, marketTitle, marketConditionId: conditionId,
+          tokenID, outcome, side: 'SELL', executionPrice: price,
           shares: ourSharesToSell, ourTradeSize: ourEstimatedRevenue,
-          targetTradeSize: targetTradeUSDC,
-          targetPortfolioValue: targetTotalPortfolio
+          targetTradeSize: targetTradeUSDC, targetPortfolioValue: targetTotalPortfolio
         });
-        broadcast('trade_executed', db.readDb());
+        broadcast('trade_executed', await db.readDb());
       } catch (err) {
         db.addLog(`[SELL FAILED] "${marketTitle}" (${outcome}) — ${err.message}`, 'error');
       }
@@ -249,9 +207,9 @@ async function processCopiedTrade(wallet, activity) {
 }
 
 async function syncPrices() {
-  const currentDb = db.readDb();
-  if (!currentDb.config.paperTrading) return;
-  if (currentDb.openPositions.length === 0) return;
+  const currentDb = await db.readDb();
+  const isPaper   = currentDb.config.paperTrading === true || currentDb.config.paperTrading === 'true';
+  if (!isPaper || currentDb.openPositions.length === 0) return;
 
   const conditionIds = [...new Set(currentDb.openPositions.map(p => p.marketConditionId))];
   const priceUpdates = {};
@@ -261,7 +219,7 @@ async function syncPrices() {
       const res = await fetch(`https://gamma-api.polymarket.com/markets?condition_id=${cid}`);
       if (!res.ok) return;
       const markets = await res.json();
-      if (!markets || markets.length === 0) return;
+      if (!markets?.length) return;
       const market = markets[0];
       let outcomes      = market.outcomes;
       let outcomePrices = market.outcomePrices;
@@ -270,124 +228,69 @@ async function syncPrices() {
       outcomes.forEach((out, idx) => {
         priceUpdates[cid + "_" + out.toLowerCase()] = parseFloat(outcomePrices[idx]);
       });
-    } catch (err) { /* ignore */ }
+    } catch { /* ignore */ }
   }));
 
-  const updated = db.updatePositionPrices(priceUpdates);
-  if (updated) broadcast('state_update', db.readDb());
+  const updated = await db.updatePositionPrices(priceUpdates);
+  if (updated) broadcast('state_update', await db.readDb());
 }
 
 async function refreshLiveBalance() {
-  const currentDb = db.readDb();
-  if (currentDb.config.paperTrading) return;
+  const currentDb = await db.readDb();
+  const isPaper   = currentDb.config.paperTrading === true || currentDb.config.paperTrading === 'true';
+  if (isPaper) return;
 
   const proxyAddress = process.env.POLYMARKET_PROXY_ADDRESS?.trim();
-  if (!proxyAddress || !proxyAddress.startsWith('0x')) return;
+  if (!proxyAddress?.startsWith('0x')) return;
 
+  const isManual = currentDb.config.realBalanceManual === true || currentDb.config.realBalanceManual === 'true';
+
+  // Fetch live positions for dashboard — always
   try {
-    let changed = false;
-
-    if (currentDb.config.realBalanceManual) {
-      // Manual mode — only update positions display, never touch balance
-      try {
-        const controller = new AbortController();
-        const timeout    = setTimeout(() => controller.abort(), 4000);
-        const posRes     = await fetch(
-          `https://data-api.polymarket.com/positions?user=${proxyAddress}`,
-          { signal: controller.signal }
-        );
-        clearTimeout(timeout);
-        if (posRes.ok) {
-          const rawPositions = await posRes.json();
-          if (Array.isArray(rawPositions)) {
-            const mappedPositions = rawPositions
-              .filter(pos => !pos.redeemable && parseFloat(pos.currentValue) > 0)
-              .map(pos => ({
-                id:                `live_${pos.conditionId}_${pos.outcome?.toLowerCase()}`,
-                marketConditionId: pos.conditionId,
-                marketTitle:       pos.title || pos.slug || "Unknown Market",
-                outcome:           pos.outcome || "Yes",
-                tokenID:           pos.conditionId + "_" + (pos.outcome || "yes").toLowerCase(),
-                shares:            parseFloat(pos.size)         || 0,
-                avgPricePaid:      parseFloat(pos.avgPrice)     || 0,
-                currentPrice:      parseFloat(pos.curPrice)     || 0,
-                value:             parseFloat(pos.currentValue) || 0,
-                unrealizedPnL:     (parseFloat(pos.currentValue) || 0) - (parseFloat(pos.initialValue) || 0),
-                trackedWallet:     pos.proxyWallet || proxyAddress
-              }));
-            const oldStr = JSON.stringify(currentDb.livePositions || []);
-            const newStr = JSON.stringify(mappedPositions);
-            if (oldStr !== newStr) {
-              currentDb.livePositions = mappedPositions;
-              db.saveDb(currentDb);
-              broadcast('state_update', db.readDb());
-            }
-          }
-        }
-      } catch (posErr) { /* silent */ }
-      return;
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), 4000);
+    const posRes     = await fetch(
+      `https://data-api.polymarket.com/positions?user=${proxyAddress}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
+    if (posRes.ok) {
+      const rawPositions = await posRes.json();
+      if (Array.isArray(rawPositions)) {
+        livePositionsCache = rawPositions
+          .filter(pos => !pos.redeemable && parseFloat(pos.currentValue) > 0)
+          .map(pos => ({
+            id:                `live_${pos.conditionId}_${pos.outcome?.toLowerCase()}`,
+            marketConditionId: pos.conditionId,
+            marketTitle:       pos.title || pos.slug || "Unknown Market",
+            outcome:           pos.outcome || "Yes",
+            tokenID:           pos.conditionId + "_" + (pos.outcome || "yes").toLowerCase(),
+            shares:            parseFloat(pos.size)         || 0,
+            avgPricePaid:      parseFloat(pos.avgPrice)     || 0,
+            currentPrice:      parseFloat(pos.curPrice)     || 0,
+            value:             parseFloat(pos.currentValue) || 0,
+            unrealizedPnL:     (parseFloat(pos.currentValue) || 0) - (parseFloat(pos.initialValue) || 0),
+            trackedWallet:     pos.proxyWallet || proxyAddress
+          }));
+      }
     }
+  } catch { /* silent */ }
 
-    // Auto-fetch balance
+  // Only auto-update balance if not manually set
+  if (!isManual) {
     let liveBalance = 0;
     try {
       liveBalance = await clob.getBalance();
-      if (liveBalance === 0) throw new Error("CLOB returned zero balance");
-      db.addLog(`CLOB balance: $${liveBalance.toFixed(2)} USDC`, 'info');
-    } catch (e) {
-      try {
-        liveBalance = await getTargetPortfolioValue(proxyAddress, 0);
-      } catch (e2) { /* silent */ }
+      if (liveBalance === 0) throw new Error("zero");
+    } catch {
+      try { liveBalance = await getTargetPortfolioValue(proxyAddress, 0); } catch { /* silent */ }
     }
-
-    if (liveBalance !== currentDb.config.realBalance) {
-      currentDb.config.realBalance = liveBalance;
-      changed = true;
+    if (liveBalance !== parseFloat(currentDb.config.realBalance)) {
+      await db.updateConfig({ realBalance: liveBalance });
     }
-
-    try {
-      const controller = new AbortController();
-      const timeout    = setTimeout(() => controller.abort(), 4000);
-      const posRes     = await fetch(
-        `https://data-api.polymarket.com/positions?user=${proxyAddress}`,
-        { signal: controller.signal }
-      );
-      clearTimeout(timeout);
-      if (posRes.ok) {
-        const rawPositions = await posRes.json();
-        if (Array.isArray(rawPositions)) {
-          const mappedPositions = rawPositions
-            .filter(pos => !pos.redeemable && parseFloat(pos.currentValue) > 0)
-            .map(pos => ({
-              id:                `live_${pos.conditionId}_${pos.outcome?.toLowerCase()}`,
-              marketConditionId: pos.conditionId,
-              marketTitle:       pos.title || pos.slug || "Unknown Market",
-              outcome:           pos.outcome || "Yes",
-              tokenID:           pos.conditionId + "_" + (pos.outcome || "yes").toLowerCase(),
-              shares:            parseFloat(pos.size)         || 0,
-              avgPricePaid:      parseFloat(pos.avgPrice)     || 0,
-              currentPrice:      parseFloat(pos.curPrice)     || 0,
-              value:             parseFloat(pos.currentValue) || 0,
-              unrealizedPnL:     (parseFloat(pos.currentValue) || 0) - (parseFloat(pos.initialValue) || 0),
-              trackedWallet:     pos.proxyWallet || proxyAddress
-            }));
-          const oldStr = JSON.stringify(currentDb.livePositions || []);
-          const newStr = JSON.stringify(mappedPositions);
-          if (oldStr !== newStr) {
-            currentDb.livePositions = mappedPositions;
-            changed = true;
-          }
-        }
-      }
-    } catch (posErr) { /* silent */ }
-
-    if (changed) {
-      db.saveDb(currentDb);
-      broadcast('state_update', db.readDb());
-    }
-  } catch (err) {
-    db.addLog(`Failed to refresh live balance: ${err.message}`, 'error');
   }
+
+  broadcast('state_update', await db.readDb());
 }
 
 async function runBotCycle() {
@@ -398,11 +301,12 @@ async function runBotCycle() {
     await syncPrices();
     await refreshLiveBalance();
 
-    const currentDb = db.readDb();
-    if (!currentDb.config.isRunning) return;
+    const currentDb = await db.readDb();
+    const isRunning = currentDb.config.isRunning === true || currentDb.config.isRunning === 'true';
+    if (!isRunning) return;
 
     const wallets = currentDb.trackedWallets;
-    if (wallets.length === 0) return;
+    if (!wallets.length) return;
 
     for (const wallet of wallets) {
       try {
@@ -413,12 +317,11 @@ async function runBotCycle() {
           { signal: pollController.signal }
         );
         clearTimeout(pollTimeout);
-
         if (!res.ok) continue;
 
         const activities = await res.json();
         if (!Array.isArray(activities) || activities.length === 0) {
-          db.updateWalletProcessedState(wallet.address, wallet.lastProcessedTradeId);
+          await db.updateWalletProcessedState(wallet.address, wallet.lastProcessedTradeId);
           continue;
         }
 
@@ -427,9 +330,9 @@ async function runBotCycle() {
         if (!wallet.lastProcessedTradeId) {
           const latest    = activities[0];
           const initialId = latest.transactionHash + "_" + latest.conditionId + "_" + latest.side;
-          db.updateWalletProcessedState(wallet.address, initialId);
+          await db.updateWalletProcessedState(wallet.address, initialId);
           db.addLog(`Watching ${wallet.label} — checkpoint set.`, 'system');
-          broadcast('wallet_updated', db.readDb());
+          broadcast('wallet_updated', await db.readDb());
           continue;
         }
 
@@ -438,34 +341,30 @@ async function runBotCycle() {
 
         for (const act of chronologicalActivities) {
           const id = act.transactionHash + "_" + act.conditionId + "_" + act.side;
-          if (foundCheckpoint) {
-            newTradesToProcess.push(act);
-          } else if (id === wallet.lastProcessedTradeId) {
-            foundCheckpoint = true;
-          }
+          if (foundCheckpoint) newTradesToProcess.push(act);
+          else if (id === wallet.lastProcessedTradeId) foundCheckpoint = true;
         }
 
         if (!foundCheckpoint && chronologicalActivities.length > 0) {
           const latest        = activities[0];
           const newCheckpoint = latest.transactionHash + "_" + latest.conditionId + "_" + latest.side;
-          db.updateWalletProcessedState(wallet.address, newCheckpoint);
+          await db.updateWalletProcessedState(wallet.address, newCheckpoint);
           continue;
         }
 
         for (const newTrade of newTradesToProcess) {
           const tradeId = newTrade.transactionHash + "_" + newTrade.conditionId + "_" + newTrade.side;
           try {
-            // Advance checkpoint FIRST so skipped trades never replay
-            db.updateWalletProcessedState(wallet.address, tradeId);
+            await db.updateWalletProcessedState(wallet.address, tradeId);
             await processCopiedTrade(wallet, newTrade);
-            broadcast('wallet_updated', db.readDb());
+            broadcast('wallet_updated', await db.readDb());
           } catch (tradeErr) {
             db.addLog(`Trade copy failed for ${wallet.label}: ${tradeErr.message}`, 'error');
           }
         }
 
         if (newTradesToProcess.length === 0) {
-          db.updateWalletProcessedState(wallet.address, wallet.lastProcessedTradeId);
+          await db.updateWalletProcessedState(wallet.address, wallet.lastProcessedTradeId);
         }
 
       } catch (walletErr) {
@@ -486,26 +385,20 @@ function startCopyTradingBot() {
   const intervalMs = parseInt(process.env.POLL_INTERVAL_MS) || 8000;
   runBotCycle();
   botIntervalId = setInterval(runBotCycle, intervalMs);
-  broadcast('bot_started', db.readDb());
 }
 
 async function stopCopyTradingBot() {
   if (!botIntervalId) return;
   clearInterval(botIntervalId);
   botIntervalId = null;
-  db.updateConfig({ isRunning: false });
+  await db.updateConfig({ isRunning: false });
   db.addLog("Copy trading bot engine PAUSED.", "system");
   await refreshLiveBalance();
-  broadcast('bot_stopped', db.readDb());
 }
 
-function isBotActive() {
-  return botIntervalId !== null;
-}
-
-async function _testInjectTrade(wallet, activity) {
-  return processCopiedTrade(wallet, activity);
-}
+function getLivePositions() { return livePositionsCache; }
+function isBotActive()      { return botIntervalId !== null; }
+async function _testInjectTrade(wallet, activity) { return processCopiedTrade(wallet, activity); }
 
 module.exports = {
   startCopyTradingBot,
@@ -513,5 +406,6 @@ module.exports = {
   isBotActive,
   setBroadcastCallback,
   refreshLiveBalance,
+  getLivePositions,
   _testInjectTrade
 };

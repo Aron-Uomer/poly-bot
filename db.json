@@ -1,0 +1,36 @@
+{
+  "config": {
+    "isRunning": true,
+    "paperTrading": false,
+    "simulationBalance": 1000,
+    "realBalance": 84.99,
+    "simulationStartingBalance": 1000,
+    "totalRealizedPnL": 0,
+    "proxyUsername": "0xF0aE...",
+    "totalPortfolioValue": 0,
+    "realStartingBalance": 84.99,
+    "realBalanceManual": true
+  },
+  "trackedWallets": [
+    {
+      "address": "0x7f3c8979d0afa00007bae4747d5347122af05613",
+      "label": "LucasMeow",
+      "multiplier": 1,
+      "addedAt": "2026-06-06T10:28:58.464Z",
+      "lastChecked": "2026-06-08T08:55:15.845Z",
+      "lastProcessedTradeId": "0xf0ad26d85dcd994bbe781ff0f0a7409b11199fa9269bab553ad3eb72571f540e_0xcf25ccc8360f3952139fb5e3f14cb9bb0636cb53d0e30e947321ceccab7e9780_BUY"
+    },
+    {
+      "address": "0x3b4484b6c8cbfdaa383ba337ab3f0d71055e264e",
+      "label": "5",
+      "multiplier": 1,
+      "addedAt": "2026-06-06T10:33:14.074Z",
+      "lastChecked": "2026-06-08T08:55:15.881Z",
+      "lastProcessedTradeId": "0xe3249aad4440fd8ce8e3ac058822b40c2a3c1495a1edc40423dcc853a26a5d24_0x58e514036d7a8ffcbde14a5c189d4282f837585656885d4856cec0a41349fe27_SELL"
+    }
+  ],
+  "openPositions": [],
+  "tradeHistory": [],
+  "logs": [],
+  "livePositions": []
+}

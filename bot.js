@@ -10,7 +10,7 @@ const ERC20_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 let botIntervalId       = null;
 let isBotProcessing     = false;
 let wsBroadcastCallback = null;
-let livePositionsCache  = []; // in-memory only — not persisted
+let livePositionsCache  = [];
 
 function setBroadcastCallback(callback) { wsBroadcastCallback = callback; }
 function broadcast(type, data) { if (wsBroadcastCallback) wsBroadcastCallback({ type, data }); }
@@ -245,7 +245,7 @@ async function refreshLiveBalance() {
 
   const isManual = currentDb.config.realBalanceManual === true || currentDb.config.realBalanceManual === 'true';
 
-  // Fetch live positions for dashboard — always
+  // Always fetch live positions for dashboard display
   try {
     const controller = new AbortController();
     const timeout    = setTimeout(() => controller.abort(), 4000);

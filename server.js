@@ -166,7 +166,8 @@ server.listen(PORT, async () => {
     await db.initDb();
     db.addLog('PostgreSQL connected and schema ready.', 'system');
   } catch (err) {
-    db.addLog(`Database init failed: ${err.message}`, 'error');
+    console.error('FULL ERROR:', err);
+    db.addLog(`Database init failed: ${err.message || err.toString()}`, 'error');
     process.exit(1);
   }
 
